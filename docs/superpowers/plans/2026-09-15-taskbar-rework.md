@@ -163,7 +163,7 @@ Create `package.json`:
   "private": true,
   "description": "Unit tests for the taskbar plugin's pure helpers. Not published; the plugin itself needs no node runtime.",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test"
   }
 }
 ```
@@ -1852,7 +1852,7 @@ Cover, in the existing voice and structure:
 - [ ] **Step 2: Update `docs/development.md`**
 
 Add short notes for the new seams:
-- `AppModel.js` is unit-tested with `npm test` (`node --test tests/`); the loader strips `.pragma library` and appends exports, so a new pure function must be added to `EXPORTED` in `tests/helpers/load-app-model.mjs` to be testable.
+- `AppModel.js` is unit-tested with `npm test` (`node --test`, which auto-discovers `tests/`); the loader strips `.pragma library` and appends exports, so a new pure function must be added to `EXPORTED` in `tests/helpers/load-app-model.mjs` to be testable.
 - The menu is a `PopupCard` from `qs.Ui`, the host component the tray uses; the plugin bar facade exposes exactly the `requestPopout` / `releasePopout` / `activePopout` / `position` it needs.
 - The drag deliberately sets no `drag.target`, because slots are positioner children; the drop marker is drawn in the widget root instead, and the same reasoning is written down in the host bar at `plugins/bar/Bar.qml:1917`.
 - Running-app order lives in memory (`seenAt`) and is reseeded from the compositor's list after a shell restart.
