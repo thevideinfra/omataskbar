@@ -721,30 +721,18 @@ In `BarWidget.qml`, the `Repeater` inside `GridLayout` becomes:
 
       Slot {
         host: root
-        required property var modelData
-        modelData: modelData
       }
     }
 ```
 
-That `required property var modelData` redeclaration is wrong in QML — a delegate receives `modelData` from the model. Write it as:
+`Slot` declares `required property var modelData` itself, and a `Repeater`
+fills a delegate's required `modelData` from its model, so nothing else is
+assigned here. Do not add `modelData: modelData` — that is a self-assignment
+and the engine warns about a binding loop.
 
-```qml
-    Repeater {
-      id: slotRepeater
-      model: root.slots
-
-      Slot {
-        required property var modelData
-        host: root
-        modelData: modelData
-      }
-    }
-```
-
-If the QML engine warns about the self-assignment, drop the `modelData: modelData` line: `Slot` declares `required property var modelData` itself, which the `Repeater` fills in directly. Check the shell log for warnings in Step 3 and keep whichever form logs nothing.
-
-`root.vertical`, `root.barSize` and `root.slotSize` must be readable from `Slot`; `vertical` and `barSize` already exist on `BarWidget` (inherited from the host's `BarWidget` base), and `slotSize` is declared at `BarWidget.qml:93`. No other change is needed.
+`root.vertical`, `root.barSize` and `root.slotSize` must be readable from
+`Slot`; `vertical` and `barSize` come from the host's `BarWidget` base and
+`slotSize` is declared at `BarWidget.qml:93`. No other change is needed.
 
 - [ ] **Step 3: Verify nothing changed**
 
@@ -965,6 +953,10 @@ PopupCard {
   contentWidth: menu.fittedContentWidth(Style.space(232))
   contentHeight: menu.fittedContentHeight(column.implicitHeight, Style.space(420))
 
+  // PopupCard.close() defers to owner.close() when the owner has one, and this
+  // component is its own owner, so this override is what the focus grab and the
+  // rows both end up calling. It routes through the widget because `open` is
+  // bound to host state: assigning `open` directly would break that binding.
   function close() { host.closeMenu() }
 
   Column {
@@ -1806,17 +1798,29 @@ and to `barWidget.schema`:
 
 Run: `omarchy restart shell` (settings change).
 
-Trigger an activation request. Any of these works:
-- In a terminal on another workspace: `hyprctl dispatch focuswindow address:0x<address>` does *not* test this — it focuses. Instead use a client that asks for attention, for example `xdg-open`-style activation from a browser link, or a chat app receiving a message.
-- Deterministic alternative: `hyprctl -j clients` for a window address, then `hyprctl dispatch tagwindow` is unrelated — use `wtype`/`ydotool`-free path: run `gtk-launch` for an app already open, which makes Hyprland emit `urgent` for the existing window in most GTK apps.
+Trigger an activation request. A single-instance GTK app asks for activation
+when it is launched again while already open, which is the cheapest reliable
+trigger here:
+
+1. Open Nautilus (it is pinned on this system).
+2. Switch to another workspace, so its window is not focused.
+3. Run `gtk-launch org.gnome.Nautilus`.
 
 Expected:
-1. The app's icon pulses three times in the theme's urgent colour, then holds a faint tint, and its running indicator takes the same colour.
-2. Clicking the icon (or focusing the window any other way) clears the tint immediately.
-3. Closing the window while it is urgent clears the state — no stuck tint on a reopened app.
+1. The Nautilus icon pulses three times in the theme's urgent colour, then
+   holds a faint tint, and its running indicator takes the same colour.
+2. Clicking the icon, or focusing the window any other way, clears the tint
+   immediately.
+3. Closing the window while it is urgent clears the state — no stuck tint when
+   the app is reopened.
 4. With `"attentionFlash": false` and a cold start: nothing flashes.
 
-If no client on this system requests activation, say so in the commit message rather than claiming the flash was seen: the code path is then verified only by the socket trace from Step 1.
+If nothing flashes, confirm what the compositor actually emitted before
+changing the QML: watch the socket with
+`socat -U - UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock`
+while repeating the trigger. If no `urgent` line appears at all, the client
+never requested activation — say so in the commit message rather than claiming
+the flash was seen, and leave the code path verified by the socket trace alone.
 
 - [ ] **Step 5: Commit**
 
