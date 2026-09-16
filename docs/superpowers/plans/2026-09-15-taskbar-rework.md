@@ -1234,9 +1234,7 @@ The `GridLayout` currently holds one `Repeater` over `root.slots` plus the trail
       model: root.pinned
 
       Slot {
-        required property var modelData
         host: root
-        modelData: modelData
       }
     }
 
@@ -1255,9 +1253,7 @@ The `GridLayout` currently holds one `Repeater` over `root.slots` plus the trail
       model: root.unpinnedApps
 
       Slot {
-        required property var modelData
         host: root
-        modelData: modelData
       }
     }
 
