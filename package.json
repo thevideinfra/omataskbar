@@ -1,0 +1,8 @@
+{
+  "name": "omarchy-taskbar",
+  "private": true,
+  "description": "Unit tests for the taskbar plugin's pure helpers. Not published; the plugin itself needs no node runtime.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
