@@ -3,7 +3,8 @@
 ```
 manifest.json      plugin declaration and setting schema
 BarWidget.qml      the widget the bar mounts
-AppModel.js        entry normalization, window matching, list editing
+Slot.qml           one icon: image or letter tile, indicator, flash, drag source
+AppModel.js        entry normalization, window matching, grouping, list editing
 bin/taskbar-pick   shows a list in the Omarchy menu, prints the choice
 ```
 

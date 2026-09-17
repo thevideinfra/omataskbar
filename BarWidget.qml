@@ -620,82 +620,11 @@ BarWidget {
     rowSpacing: root.vertical ? root.gap : 0
 
     Repeater {
+      id: slotRepeater
       model: root.slots
 
-      WidgetButton {
-        id: slot
-        required property var modelData
-
-        readonly property var matched: AppModel.windowsFor(modelData, root.windows)
-        readonly property bool running: matched.length > 0
-        readonly property bool focused: {
-          if (!running || root.activeAddress === "") return false
-          for (var i = 0; i < matched.length; i++) {
-            if (matched[i].address === root.activeAddress) return true
-          }
-          return false
-        }
-
-        readonly property var entry: root.desktopEntry(modelData)
-        readonly property string iconName: {
-          if (modelData.icon) return modelData.icon
-          return entry && entry.icon ? String(entry.icon) : String(modelData.desktopId || "")
-        }
-        readonly property string appLabel: root.labelFor(modelData)
-
-        bar: root.bar
-        labelVisible: false
-        hasVisualContent: true
-        dimmed: root.dimWhenClosed && !running
-        tooltipText: appLabel + (matched.length > 1 ? " (" + matched.length + " windows)" : "")
-        fixedWidth: root.vertical ? root.barSize : root.slotSize
-        fixedHeight: root.vertical ? root.slotSize : root.barSize
-
-        onPressed: function(button) { root.handlePress(slot.modelData, button) }
-
-        Image {
-          id: iconImage
-          visible: status === Image.Ready
-          anchors.centerIn: parent
-          // Leave room for the indicator so the icon stays optically centered.
-          anchors.verticalCenterOffset: root.runningIndicator && !root.vertical ? -1 : 0
-          anchors.horizontalCenterOffset: root.runningIndicator && root.vertical ? 1 : 0
-          width: root.iconSize
-          height: root.iconSize
-          sourceSize.width: root.iconSize * 2
-          sourceSize.height: root.iconSize * 2
-          fillMode: Image.PreserveAspectFit
-          asynchronous: true
-          smooth: true
-          source: root.iconSource(slot.iconName)
-        }
-
-        // Icon lookups fail for entries with no themed icon; a letter tile
-        // keeps the slot readable instead of leaving a hole in the bar.
-        Text {
-          visible: iconImage.status !== Image.Ready
-          anchors.centerIn: iconImage
-          text: slot.appLabel.substring(0, 1).toUpperCase()
-          color: slot.focused ? slot.activeColor : slot.foreground
-          font.family: slot.fontFamily
-          font.pixelSize: Style.font.bodySmall
-          renderType: Text.NativeRendering
-        }
-
-        Rectangle {
-          visible: root.runningIndicator && slot.running
-          readonly property int extent: slot.matched.length > 1 ? 10 : 5
-          width: root.vertical ? 2 : extent
-          height: root.vertical ? extent : 2
-          radius: 1
-          color: slot.focused ? slot.activeColor : slot.foreground
-          x: root.vertical ? 2 : (slot.width - width) / 2
-          y: root.vertical ? (slot.height - height) / 2 : slot.height - height - 3
-
-          Behavior on color {
-            ColorAnimation { duration: 160 }
-          }
-        }
+      Slot {
+        host: root
       }
     }
 
