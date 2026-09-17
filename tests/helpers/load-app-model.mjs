@@ -28,7 +28,8 @@ const EXPORTED = [
   "indexOfKey",
   "hasDesktopId",
   "movedRecords",
-  "serialize"
+  "serialize",
+  "menuRows"
 ]
 
 export async function loadAppModel() {

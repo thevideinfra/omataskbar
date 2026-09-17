@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Taskbar",
-    "description": "Pinned app icons with running indicators; left = launch or focus, right = actions, middle = new instance",
+    "description": "Pinned app icons with running indicators; left = launch or focus, right = context menu with the app's windows, middle = new instance",
     "category": "Launcher",
     "allowMultiple": false,
     "defaultSection": "left",

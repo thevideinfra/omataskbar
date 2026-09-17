@@ -40,7 +40,7 @@ WidgetButton {
   fixedWidth: host.vertical ? host.barSize : host.slotSize
   fixedHeight: host.vertical ? host.slotSize : host.barSize
 
-  onPressed: function(button) { host.handlePress(slot.modelData, button) }
+  onPressed: function(button) { host.handlePress(slot.modelData, button, slot) }
 
   Image {
     id: iconImage

@@ -281,13 +281,13 @@ BarWidget {
     }
   }
 
-  function handlePress(record, button) {
+  function handlePress(record, button, anchor) {
     if (button === Qt.MiddleButton) {
       root.launch(record)
       return
     }
     if (button === Qt.RightButton) {
-      root.promptActions(record)
+      root.openMenu(record, anchor)
       return
     }
     var matched = AppModel.windowsFor(record, root.windows)
@@ -516,25 +516,6 @@ BarWidget {
     return outcome
   }
 
-  function promptActions(record) {
-    if (!record) return
-    if (record.unpinned) {
-      root.runPicker("actions", record.key, root.labelFor(record),
-        ["\tNew instance\tlaunch", "\tPin to taskbar\tpin"])
-      return
-    }
-
-    var index = AppModel.indexOfKey(root.pinned, record.key)
-    if (index < 0) return
-
-    var options = ["\tNew instance\tlaunch"]
-    if (index > 0) options.push("\t" + (root.vertical ? "Move up" : "Move left") + "\tback")
-    if (index < root.pinned.length - 1) options.push("\t" + (root.vertical ? "Move down" : "Move right") + "\tforward")
-    options.push("\tUnpin\tunpin")
-
-    root.runPicker("actions", record.key, root.labelFor(record), options)
-  }
-
   // The menu returns "<label>\t<value>"; the value is the field we set.
   function onPicked(kind, context, raw) {
     var text = String(raw || "").trim()
@@ -542,12 +523,54 @@ BarWidget {
     var parts = text.split("\t")
     var value = parts[parts.length - 1]
     if (!value) return
+    if (kind === "add") root.pinApp(value)
+  }
 
-    if (kind === "add") {
-      root.pinApp(value)
+  // ------------------------------------------------------------------- menu
+
+  property var menuRecord: null
+  property var menuAnchor: null
+  property bool menuOpen: false
+
+  function openMenu(record, anchor) {
+    if (!record || !anchor) return
+    // Re-pressing the same icon closes the menu, the way a tray icon does.
+    if (root.menuOpen && root.menuRecord && root.menuRecord.key === record.key) {
+      root.closeMenu()
       return
     }
-    if (kind === "actions") root.runAction(context, value)
+    root.menuRecord = record
+    root.menuAnchor = anchor
+    root.menuOpen = true
+  }
+
+  function closeMenu() {
+    root.menuOpen = false
+  }
+
+  // Rows are rebuilt from live state, so the menu follows windows opening and
+  // closing while it is on screen.
+  readonly property var menuRows: {
+    if (!root.menuRecord) return []
+    var record = root.menuRecord
+    return AppModel.menuRows(record,
+      AppModel.windowsFor(record, root.windows),
+      root.activeAddress,
+      record.unpinned ? -1 : AppModel.indexOfKey(root.pinned, record.key),
+      root.pinned.length,
+      root.vertical,
+      root.labelFor(record))
+  }
+
+  function focusAddress(address) {
+    var target = String(address || "")
+    if (!target) return
+    for (var i = 0; i < root.windows.length; i++) {
+      if (root.windows[i].address === target) {
+        root.focusWindow(root.windows[i])
+        return
+      }
+    }
   }
 
   function runAction(key, action) {
@@ -578,6 +601,21 @@ BarWidget {
 
   implicitWidth: layout.implicitWidth
   implicitHeight: layout.implicitHeight
+
+  // The record a menu describes can vanish out from under it (app closed
+  // elsewhere), so close rather than let the menu keep showing dead rows.
+  onSlotsChanged: {
+    if (!root.menuOpen || !root.menuRecord) return
+    if (AppModel.indexOfKey(root.slots, root.menuRecord.key) < 0) root.closeMenu()
+  }
+
+  TaskbarMenu {
+    id: contextMenu
+    host: root
+    anchorItem: root.menuAnchor || root
+    open: root.menuOpen
+    rows: root.menuRows
+  }
 
   Process {
     id: pickerProc

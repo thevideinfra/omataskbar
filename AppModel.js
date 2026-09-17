@@ -401,3 +401,48 @@ function serialize(records) {
   }
   return out
 }
+
+// ------------------------------------------------------------------ menu
+
+// The rows of one icon's context menu, as plain data so the row set is
+// testable without a running shell and the QML side only paints what it is
+// given. `pinnedIndex` is the record's position in the stored pin list, or -1
+// for a running app that is not pinned.
+function menuRows(record, windows, activeAddress, pinnedIndex, pinnedCount, vertical, label) {
+  if (!record) return []
+
+  var name = String(label || record.desktopId || "")
+  var rows = [{ kind: "header", label: name }]
+  var all = toArray(windows)
+  var active = String(activeAddress || "")
+
+  if (all.length > 0) {
+    rows.push({ kind: "separator" })
+    for (var i = 0; i < all.length; i++) {
+      var address = String(all[i].address || "")
+      rows.push({
+        kind: "window",
+        label: String(all[i].title || name),
+        address: address,
+        active: address !== "" && address === active
+      })
+    }
+  }
+
+  rows.push({ kind: "separator" })
+  rows.push({ kind: "action", action: "launch", label: "New instance" })
+
+  if (record.unpinned) {
+    rows.push({ kind: "action", action: "pin", label: "Pin to taskbar" })
+    return rows
+  }
+
+  if (pinnedIndex > 0) {
+    rows.push({ kind: "action", action: "back", label: vertical ? "Move up" : "Move left" })
+  }
+  if (pinnedIndex >= 0 && pinnedIndex < pinnedCount - 1) {
+    rows.push({ kind: "action", action: "forward", label: vertical ? "Move down" : "Move right" })
+  }
+  rows.push({ kind: "action", action: "unpin", label: "Unpin" })
+  return rows
+}
