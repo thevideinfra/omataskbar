@@ -181,24 +181,29 @@ function windowsFor(record, windows) {
 }
 
 // Windows that no pinned record claims, grouped into one synthetic record per
-// application. The widget renders these after the pinned strip, so an app you
-// never pinned still gets an icon while it is open and loses it when its last
-// window closes — the way a Windows or macOS taskbar behaves.
-function unpinnedRecords(pinned, windows) {
+// application, in the order the apps were first seen.
+//
+// `seenAt` maps a lowercased identity to the sequence number it was given the
+// first time it appeared. Returned alongside the records, rebuilt to hold only
+// identities that still have windows: an app that closes forgets its slot, so
+// reopening it puts it at the end rather than back in the middle.
+//
+// Ordering is not taken from the compositor's list, which reorders as focus
+// moves — an icon that moves under the pointer is worse than an icon in the
+// wrong place. New identities are appended in list order, which is stable
+// within a single refresh.
+function groupUnpinned(pinned, windows, seenAt) {
   var all = toArray(windows)
-  if (!all.length) return []
-
-  // Resolve each pinned matcher once rather than per window.
   var pins = toArray(pinned)
   var claims = []
   for (var p = 0; p < pins.length; p++) {
     claims.push({ record: pins[p], matcher: matcherFor(pins[p]) })
   }
 
-  // Lowered identity -> the identity as the window actually reported it. The
-  // one map both de-duplicates and orders: its keys are already lowercased, so
-  // they sort without a comparator.
+  // Lowered identity -> the identity as the window actually reported it, plus
+  // the keys in first-appearance order.
   var byKey = {}
+  var live = []
   for (var i = 0; i < all.length; i++) {
     var win = all[i]
     var claimed = false
@@ -215,28 +220,41 @@ function unpinnedRecords(pinned, windows) {
     var identity = String(win.appId || win.cls || "")
     if (!identity) continue
     var key = identity.toLowerCase()
-    if (!(key in byKey)) byKey[key] = identity
+    if (key in byKey) continue
+    byKey[key] = identity
+    live.push(key)
   }
 
-  // Sorted, because the compositor reorders its toplevel list as focus moves
-  // and an icon that changes place under the pointer is worse than no icon.
-  var keys = Object.keys(byKey).sort()
+  var previous = seenAt || {}
+  var highest = 0
+  for (var known in previous) {
+    if (previous[known] > highest) highest = previous[known]
+  }
+
+  var next = {}
+  for (var l = 0; l < live.length; l++) {
+    var liveKey = live[l]
+    next[liveKey] = (liveKey in previous) ? previous[liveKey] : ++highest
+  }
+
+  live.sort(function(a, b) { return next[a] - next[b] })
+
   var out = []
-  for (var k = 0; k < keys.length; k++) {
-    var id = byKey[keys[k]]
+  for (var s = 0; s < live.length; s++) {
+    var id = byKey[live[s]]
     // Built through normalizeApp so a synthetic record has exactly the shape a
     // stored one does and the widget never has to ask which kind it is holding.
-    var record = normalizeApp({ desktopId: id, match: exactPattern(id) }, k)
+    var record = normalizeApp({ desktopId: id, match: exactPattern(id) }, s)
     if (!record) continue
-    // Not from shell.json: never written back, and its right-click menu offers
-    // pinning rather than unpinning and reordering. serialize() whitelists
-    // fields, so neither of these can reach the config even by accident.
+    // Not from shell.json: never written back, and its menu offers pinning
+    // rather than unpinning. serialize() whitelists fields, so this cannot
+    // reach the config even by accident.
     record.unpinned = true
     // Namespaced so it cannot collide with a stored pin for the same id.
     record.key = "unpinned:" + id
     out.push(record)
   }
-  return out
+  return { records: out, seenAt: next }
 }
 
 // True when any record matches on window titles. Titles change constantly, so

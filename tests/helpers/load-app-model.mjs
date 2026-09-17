@@ -18,6 +18,7 @@ const EXPORTED = [
   "normalizeApps",
   "windowMatches",
   "windowsFor",
+  "groupUnpinned",
   "anyMatchTitle",
   "windowFingerprint",
   "sameKeys",

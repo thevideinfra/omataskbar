@@ -50,9 +50,15 @@ BarWidget {
   readonly property string noFingerprint: "\u0000"
   property string lastFingerprint: root.noFingerprint
 
+  // Identity -> the sequence number it was first seen with. In memory only: a
+  // shell restart reseeds from the compositor's list, which is acceptable for
+  // ordering state that nothing else depends on.
+  property var seenAt: ({})
+
   function refreshUnpinned() {
     if (!root.showRunningApps) {
       if (root.unpinnedApps.length > 0) root.unpinnedApps = []
+      root.seenAt = ({})
       return
     }
 
@@ -61,9 +67,10 @@ BarWidget {
     if (fingerprint === root.lastFingerprint) return
     root.lastFingerprint = fingerprint
 
-    var next = AppModel.unpinnedRecords(root.pinned, root.windows)
-    if (AppModel.sameKeys(next, root.unpinnedApps)) return
-    root.unpinnedApps = next
+    var grouped = AppModel.groupUnpinned(root.pinned, root.windows, root.seenAt)
+    root.seenAt = grouped.seenAt
+    if (AppModel.sameKeys(grouped.records, root.unpinnedApps)) return
+    root.unpinnedApps = grouped.records
   }
 
   // Tracks `windows` rather than `windowSerial`: a shell restart repopulates
