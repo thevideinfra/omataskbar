@@ -26,7 +26,8 @@
       "dimWhenClosed": true,
       "cycleWindows": true,
       "showAddButton": true,
-      "showRunningApps": true
+      "showRunningApps": true,
+      "showSeparator": true
     },
     "schema": [
       {
@@ -68,6 +69,11 @@
         "key": "showRunningApps",
         "type": "bool",
         "label": "Also show open apps that are not pinned"
+      },
+      {
+        "key": "showSeparator",
+        "type": "bool",
+        "label": "Separate pinned apps from running apps"
       }
     ]
   }

@@ -34,6 +34,10 @@ BarWidget {
   readonly property bool cycleWindows: root.setting("cycleWindows", true) === true
   readonly property bool showAddButton: root.setting("showAddButton", true) === true
   readonly property bool showRunningApps: root.setting("showRunningApps", true) === true
+  readonly property bool showSeparator: root.setting("showSeparator", true) === true
+
+  readonly property bool separatorVisible: root.showSeparator
+    && root.pinned.length > 0 && root.unpinnedApps.length > 0
 
   // Open apps that nothing pinned claims, rendered after the pinned strip and
   // gone again with their last window.
@@ -694,13 +698,35 @@ BarWidget {
   GridLayout {
     id: layout
     anchors.fill: parent
-    columns: root.vertical ? 1 : Math.max(1, root.slots.length + (root.showTrailing ? 1 : 0))
+    columns: root.vertical
+      ? 1
+      : Math.max(1, root.pinned.length + root.unpinnedApps.length
+          + (root.separatorVisible ? 1 : 0) + (root.showTrailing ? 1 : 0))
     columnSpacing: root.vertical ? 0 : root.gap
     rowSpacing: root.vertical ? root.gap : 0
 
     Repeater {
-      id: slotRepeater
-      model: root.slots
+      id: pinnedRepeater
+      model: root.pinned
+
+      Slot {
+        host: root
+      }
+    }
+
+    // Only earns its space when both groups are present.
+    Rectangle {
+      visible: root.separatorVisible
+      Layout.preferredWidth: root.vertical ? Math.round(root.barSize * 0.5) : 1
+      Layout.preferredHeight: root.vertical ? 1 : Math.round(root.barSize * 0.5)
+      Layout.alignment: Qt.AlignCenter
+      color: Color.popups.border
+      opacity: 0.45
+    }
+
+    Repeater {
+      id: runningRepeater
+      model: root.unpinnedApps
 
       Slot {
         host: root
