@@ -319,6 +319,38 @@ function plausibleWindowClass(value) {
   return /^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(text)
 }
 
+// A desktop entry that launches a terminal with an explicit app id owns that id
+// as far as the compositor is concerned: `xdg-terminal-exec --app-id=TUI.tile -e
+// btop` produces windows whose class is TUI.tile, and no entry has that as its
+// own id. Index those values so such a window can still find an icon and a name
+// instead of falling back to a letter tile.
+//
+// `entries` are plain { id, exec } descriptors, so this stays free of QML
+// globals. First entry wins: two TUIs sharing one app id are indistinguishable
+// here, and picking the first is at least stable.
+function execAppIdIndex(entries) {
+  var all = toArray(entries)
+  var index = {}
+  var pattern = /--(?:app-id|class)(?:=|\s+)("[^"]*"|'[^']*'|[^\s]+)/g
+
+  for (var i = 0; i < all.length; i++) {
+    var entry = all[i]
+    if (!entry) continue
+    var id = String(entry.id || "")
+    var exec = String(entry.exec || "")
+    if (!id || !exec) continue
+
+    pattern.lastIndex = 0
+    var found = pattern.exec(exec)
+    while (found) {
+      var value = found[1].replace(/^['"]|['"]$/g, "").toLowerCase()
+      if (value && !(value in index)) index[value] = id
+      found = pattern.exec(exec)
+    }
+  }
+  return index
+}
+
 // ------------------------------------------------------------------ editing
 
 function indexOfKey(records, key) {

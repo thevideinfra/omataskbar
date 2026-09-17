@@ -133,6 +133,21 @@ BarWidget {
 
   readonly property var windows: root.windowDescriptors()
 
+  // Lowercased app id -> desktop entry id, for window classes that exist only
+  // as an --app-id inside some entry's Exec. Rebuilt when the entry index
+  // changes, which is what entrySerial tracks.
+  readonly property var execIndex: {
+    var serial = root.entrySerial // binding dependency
+    var descriptors = []
+    var values = DesktopEntries.applications ? DesktopEntries.applications.values : []
+    for (var i = 0; i < values.length; i++) {
+      var entry = values[i]
+      if (!entry) continue
+      descriptors.push({ id: String(entry.id || ""), exec: String(entry.execString || "") })
+    }
+    return AppModel.execAppIdIndex(descriptors)
+  }
+
   function entryById(desktopId) {
     var serial = root.entrySerial // binding dependency
     var id = String(desktopId || "")
@@ -141,6 +156,17 @@ BarWidget {
       var exact = DesktopEntries.byId(id)
       if (exact) return exact
     } catch (e) { }
+
+    // A window class that is only some entry's --app-id: resolve through the
+    // Exec index before falling back to guessing.
+    var mapped = root.execIndex[id.toLowerCase()]
+    if (mapped) {
+      try {
+        var byExec = DesktopEntries.byId(mapped)
+        if (byExec) return byExec
+      } catch (e) { }
+    }
+
     // heuristicLookup answers with *some* application rather than nothing, so
     // before the entry index is warm it will hand back an unrelated app and we
     // would paint its icon and name onto this slot. Keep the lookup — it is

@@ -24,6 +24,7 @@ const EXPORTED = [
   "sameKeys",
   "nextWindowIndex",
   "plausibleWindowClass",
+  "execAppIdIndex",
   "indexOfKey",
   "hasDesktopId",
   "movedRecords",
