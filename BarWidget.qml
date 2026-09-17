@@ -77,11 +77,26 @@ BarWidget {
   // the toplevel list without Hyprland emitting any event, so a serial-only
   // trigger leaves the strip empty until the user happens to open or close
   // something. `windows` re-evaluates on both.
-  onWindowsChanged: root.refreshUnpinned()
+  //
+  // A QML object can only declare one handler per signal, and the open menu's
+  // rows depend on this same signal (windows opening/closing, focus moving),
+  // so both refreshes live in this one handler rather than a second one.
+  onWindowsChanged: {
+    root.refreshUnpinned()
+    root.refreshMenuRows()
+  }
+  onActiveAddressChanged: root.refreshMenuRows()
   // Editing the pins changes what counts as unclaimed even when not a single
   // window moved, so the fingerprint has to be dropped rather than compared.
-  onPinnedChanged: root.forgetFingerprint()
+  // It also changes the open menu's move rows (neighbour existence) and
+  // pinned/unpinned action set.
+  onPinnedChanged: {
+    root.forgetFingerprint()
+    root.refreshMenuRows()
+  }
   onShowRunningAppsChanged: root.forgetFingerprint()
+  // Move-row labels and the vertical/horizontal action set depend on it.
+  onVerticalChanged: root.refreshMenuRows()
   Component.onCompleted: root.refreshUnpinned()
 
   function forgetFingerprint() {
@@ -542,24 +557,46 @@ BarWidget {
     root.menuRecord = record
     root.menuAnchor = anchor
     root.menuOpen = true
+    root.refreshMenuRows()
   }
 
   function closeMenu() {
     root.menuOpen = false
   }
 
-  // Rows are rebuilt from live state, so the menu follows windows opening and
-  // closing while it is on screen.
-  readonly property var menuRows: {
-    if (!root.menuRecord) return []
+  // The card fades out over PopupCard's own animation, so `menuRecord` stays
+  // put until that finishes — clearing it on `menuOpen` would blank the card
+  // mid-fade. Called from the TaskbarMenu instance's onVisibleChanged, the
+  // same way Tray.qml's onVisibleChanged resets its own menu state.
+  function forgetMenu() {
+    root.menuRecord = null
+    root.menuAnchor = null
+    root.refreshMenuRows()
+  }
+
+  // Rows are rebuilt from live state so the open menu follows windows opening
+  // and closing and the focused-window dot, but reassigned only when the
+  // result actually changed: every window event reaches `onWindowsChanged`
+  // (including continuous windowtitle events), and a fresh array on every one
+  // would tear down and rebuild every row delegate in TaskbarMenu's Repeater
+  // — the same hazard refreshUnpinned's fingerprint guards the icon Repeater
+  // against. Rows are plain data, so JSON.stringify is a cheap-enough compare.
+  property var menuRows: []
+
+  function refreshMenuRows() {
+    if (!root.menuRecord) {
+      if (root.menuRows.length > 0) root.menuRows = []
+      return
+    }
     var record = root.menuRecord
-    return AppModel.menuRows(record,
+    var next = AppModel.menuRows(record,
       AppModel.windowsFor(record, root.windows),
       root.activeAddress,
       record.unpinned ? -1 : AppModel.indexOfKey(root.pinned, record.key),
       root.pinned.length,
       root.vertical,
       root.labelFor(record))
+    if (JSON.stringify(next) !== JSON.stringify(root.menuRows)) root.menuRows = next
   }
 
   function focusAddress(address) {
@@ -615,6 +652,10 @@ BarWidget {
     anchorItem: root.menuAnchor || root
     open: root.menuOpen
     rows: root.menuRows
+    // PopupCard stays visible through its own fade-out animation after
+    // `open` goes false, so wait for that before dropping menuRecord —
+    // clearing it any earlier would blank the card mid-fade.
+    onVisibleChanged: if (!contextMenu.visible) root.forgetMenu()
   }
 
   Process {
