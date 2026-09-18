@@ -81,7 +81,7 @@ hot-reloads on save. The bar UI writes to this same place.
 | `runningIndicator` | `true` | Draw the running/focused indicator |
 | `dimWhenClosed` | `true` | Fade icons for apps with no open window |
 | `cycleWindows` | `true` | Re-clicking a focused app advances to its next window |
-| `showAddButton` | `true` | Show the trailing `+` for pinning apps |
+| `showAddButton` | `true` | Show the trailing `+` for pinning apps (always shown while nothing is pinned) |
 | `showRunningApps` | `true` | Also show open apps that are not pinned |
 | `showSeparator` | `true` | Draw a separator between pinned and running icons |
 | `attentionFlash` | `true` | Flash an icon when one of its windows asks for attention |

@@ -152,9 +152,10 @@ BarWidget {
   // are all written against a record and neither needs to know the difference.
   readonly property var slots: root.pinned.concat(root.unpinnedApps)
 
-  // With no slots at all and the + turned off the widget would be invisible,
-  // so keep a trailing slot in that case purely as an affordance.
-  readonly property bool showTrailing: root.showAddButton || root.slots.length === 0
+  // The + is shown whenever it is switched on, and always while nothing is
+  // pinned: with no pins it is the only way to start from the bar itself, so a
+  // past choice to hide it must not leave the widget with no way in.
+  readonly property bool showTrailing: root.showAddButton || root.pinned.length === 0
 
   readonly property int slotSize: root.iconSize + Style.spaceReal(9)
 
@@ -830,20 +831,17 @@ BarWidget {
       id: trailing
       visible: root.showTrailing
       bar: root.bar
-      text: root.showAddButton ? "\uf067" : "\uf009"
+      text: "\uf067"
       fontSize: Style.font.bodySmall
       hasVisualContent: root.showTrailing
-      pressable: root.showAddButton
       // Sits at full strength while there is nothing pinned, so a fresh widget
       // reads as an invitation rather than as decoration.
       dimmed: root.pinned.length > 0 && !tooltipHovered
-      tooltipText: root.showAddButton
-        ? "Pin an app"
-        : "Taskbar: no apps pinned — add an \"apps\" list to this widget's shell.json entry"
+      tooltipText: "Pin an app"
       fixedWidth: root.vertical ? root.barSize : root.slotSize
       fixedHeight: root.vertical ? root.slotSize : root.barSize
 
-      onPressed: function(button) { if (root.showAddButton) root.promptAdd() }
+      onPressed: function(button) { root.promptAdd() }
     }
   }
 }
