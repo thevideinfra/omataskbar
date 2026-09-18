@@ -7,9 +7,11 @@ and the settings table.
 ## Requirements
 
 - Omarchy 4+ (`omarchy-shell`), which provides the bar and the plugin host.
-- The built-in `omarchy.menu` plugin, enabled. The `+` and the right-click
-  actions are rendered by summoning it in select mode; with it disabled the
-  icons still launch and focus, but the editing menus will not open.
+- The built-in `omarchy.menu` plugin, enabled. Only the `+` picker uses it,
+  summoning it in select mode through `bin/taskbar-pick`; with it disabled,
+  the `+` stops opening but icons still launch, focus, and cycle windows, and
+  the right-click menu (the widget's own popup, not `omarchy.menu`) still
+  works.
 - `jq`, used by `bin/taskbar-pick`. It is already a hard dependency of
   `omarchy` itself, so it is present on any Omarchy system.
 
@@ -28,7 +30,10 @@ All of it sits inline on the widget's entry in `~/.config/omarchy/shell.json`:
   "runningIndicator": true,
   "dimWhenClosed": true,
   "cycleWindows": true,
-  "showAddButton": true
+  "showAddButton": true,
+  "showRunningApps": true,
+  "showSeparator": true,
+  "attentionFlash": true
 }
 ```
 
@@ -41,12 +46,19 @@ removed when its last window closes.
 These are derived from what the compositor reports, never from `shell.json`,
 and are matched on exactly the app id or window class the window reported —
 anchored, unlike the looser word-boundary pattern a hand-written pin gets, so
-two unrelated classes can never collapse into one icon. They are ordered
-alphabetically, because the compositor reorders its own window list as focus
-moves and an icon that shifts under the pointer is worse than no icon.
+two unrelated classes can never collapse into one icon. They appear in the
+order their apps were opened: an icon is added when its app's first window
+shows up, keeps its place for as long as any window stays open, and a
+reopened app lands at the end rather than back where it was — because the
+compositor reorders its own window list as focus moves, and an icon that
+shifts under the pointer is worse than one that stays put. That order is
+kept in memory only and resets on a shell restart.
 
-Right-clicking one offers **Pin to taskbar**, which stores the resolved desktop
-entry id, so the pin survives the app closing.
+Right-clicking one opens the same context menu as a pinned icon (see the
+[README](../README.md#using-it) for its window list, **New instance**, and
+close actions); its version offers **Pin to taskbar** instead of unpinning,
+which stores the resolved desktop entry id so the pin survives the app
+closing.
 
 ## Pinned entries
 
