@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.joeyvigil.taskbar",
-  "name": "Taskbar",
+  "id": "io.github.thevideinfra.omataskbar",
+  "name": "Omataskbar",
   "version": "0.5.0",
-  "author": "Joey Vigil",
+  "author": "thevideinfra",
   "license": "MIT",
   "description": "Pinned app icons in the bar with running-state indicators; pin and unpin from the bar itself",
   "kinds": [
@@ -13,7 +13,7 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Taskbar",
+    "displayName": "Omataskbar",
     "description": "Pinned app icons with running indicators; left = launch or focus, right = context menu with the app's windows and how to close them, middle = new instance",
     "category": "Launcher",
     "allowMultiple": false,

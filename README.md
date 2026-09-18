@@ -1,6 +1,11 @@
-# Taskbar
+# Omataskbar
 
 Pinned app icons for the [Omarchy](https://omarchy.org/) bar.
+
+A fork of Joey Vigil's [omarchy-taskbar](https://github.com/joeyvigil/omarchy-taskbar)
+with an anchored right-click menu, window closing, open-order running icons,
+a pinned/running separator and attention flashing. It uses its own plugin id,
+so it installs alongside the original rather than replacing it.
 
 Click an icon to launch the app — or to focus it, if it's already open. A small
 indicator under each icon shows what's running and which app you're in.
@@ -12,8 +17,8 @@ Pin and unpin from the bar itself. No config file editing.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/joeyvigil/omarchy-taskbar.git --enable --yes
-omarchy bar move io.github.joeyvigil.taskbar --section left
+omarchy plugin add https://github.com/thevideinfra/omataskbar.git --enable --yes
+omarchy bar move io.github.thevideinfra.omataskbar --section left
 ```
 
 Needs Omarchy 4+. The `+` picker also needs the built-in `omarchy.menu` plugin
@@ -88,14 +93,16 @@ hot-reloads on save. The bar UI writes to this same place.
 ## Remove
 
 ```bash
-omarchy plugin remove io.github.joeyvigil.taskbar
+omarchy plugin remove io.github.thevideinfra.omataskbar
 ```
 
 This takes the pin list with it, for the same reason as above.
 
 ## Changes
 
-**0.5.0** — Right-click now opens an anchored context menu at the icon,
+**0.5.0** — First release as Omataskbar, under its own plugin id
+(`io.github.thevideinfra.omataskbar`); the entries below are upstream's and
+use its id. Right-click now opens an anchored context menu at the icon,
 listing the app's windows so you can focus a specific one, with a `✕` on
 each row to close it. The menu also closes one window or all of them, and is
 where reordering and pinning now live (`Move left` / `Move right`, `Pin to

@@ -23,7 +23,7 @@ All of it sits inline on the widget's entry in `~/.config/omarchy/shell.json`:
 
 ```json
 {
-  "id": "io.github.joeyvigil.taskbar",
+  "id": "io.github.thevideinfra.omataskbar",
   "apps": ["Alacritty", "chromium", "code"],
   "iconSize": 17,
   "spacing": 2,
@@ -112,10 +112,10 @@ hyprctl clients -j | jq -r '.[] | "\(.class)\t\(.title)"'
 ## From the command line
 
 ```bash
-omarchy-shell io.github.joeyvigil.taskbar list             # current pins, as JSON
-omarchy-shell io.github.joeyvigil.taskbar pin obsidian     # pin by desktop entry id
-omarchy-shell io.github.joeyvigil.taskbar unpin obsidian   # unpin
-omarchy-shell io.github.joeyvigil.taskbar add              # open the pin picker
+omarchy-shell io.github.thevideinfra.omataskbar list             # current pins, as JSON
+omarchy-shell io.github.thevideinfra.omataskbar pin obsidian     # pin by desktop entry id
+omarchy-shell io.github.thevideinfra.omataskbar unpin obsidian   # unpin
+omarchy-shell io.github.thevideinfra.omataskbar add              # open the pin picker
 ```
 
 Handy for keybindings, or for adding a "Pin app to taskbar" entry to

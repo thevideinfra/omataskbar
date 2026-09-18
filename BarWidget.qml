@@ -22,7 +22,7 @@ import "AppModel.js" as AppModel
 // truth.
 BarWidget {
   id: root
-  moduleName: "io.github.joeyvigil.taskbar"
+  moduleName: "io.github.thevideinfra.omataskbar"
 
   // AppLibrary owns desktop-entry icon resolution (including the on-disk index
   // that catches icons Qt's cache missed). The bar hands us the shell root.
@@ -760,7 +760,7 @@ BarWidget {
   }
 
   IpcHandler {
-    target: "io.github.joeyvigil.taskbar"
+    target: "io.github.thevideinfra.omataskbar"
 
     function pin(desktopId: string): string { return root.pinApp(desktopId) }
     function unpin(desktopId: string): string { return root.unpinApp(desktopId) }
