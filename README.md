@@ -25,20 +25,42 @@ Needs Omarchy 4+, with the built-in `omarchy.menu` plugin enabled.
 | **Left click** | Launch the app, or focus it if it's already running |
 | **Left click** (already focused) | Cycle to that app's next window |
 | **Middle click** | Always launch a new instance |
-| **Right click** | Actions: new instance, move left/right, unpin |
+| **Right click** | Open a context menu at the icon: the app's windows (click one to focus it), then new instance, move left/right, pin/unpin, and close |
 | **Click the `+`** | Pin an app, from a searchable list of everything installed |
 | **Hover** | App name, plus window count when more than one is open |
 
-Open an app you haven't pinned and it gets an icon too, after the pinned ones,
-with the same click behaviour. That icon disappears when its last window
-closes. Right-click it to keep it for good. Turn this off with
+The context menu lists each open window by title — click one to focus it, or
+hover a row for a `✕` that closes just that window. Below the windows, an
+action closes the rest: **Close window** for one, **Close all windows** for
+more than one. **Move left** / **Move right** reorder a pinned icon, and
+**Pin to taskbar** / **Unpin** move it in or out of the pinned group — there's
+no drag, since the Omarchy bar itself uses a left-drag on any widget to move
+that widget within the bar.
+
+Open an app you haven't pinned and it gets an icon too, after the pinned
+ones, in the order you opened them, with the same click behaviour. A
+separator divides the pinned icons from the running ones (`showSeparator`).
+That icon disappears when its last window closes. Right-click it and choose
+**Pin to taskbar** to keep it for good. Turn running icons off entirely with
 `showRunningApps` if you only want the apps you chose.
+
+An icon flashes in the theme's urgent colour when one of its windows asks for
+attention, until you focus it (`attentionFlash`). This only fires for clients
+that actually request activation through the compositor — a bare
+`notify-send` can't trigger it.
 
 <img src="docs/picker.png" alt="Pinning an app from the bar" width="420">
 
 Pinning through the `+` also works out how to recognise that app's windows, so
 the running indicator just works — including for Omarchy web apps, which
 Chromium reports under names like `chrome-discord.com__channels_@me-Default`.
+
+Grouping is per window class, so terminal apps launched with the same
+`--app-id` all land on one icon and resolve to one desktop entry — several
+TUIs started with `--app-id=TUI.tile`, for instance, share an icon instead of
+each getting their own. Give each one its own id, such as
+`--app-id=org.omarchy.btop`, which is what `omarchy-launch-tui` does by
+default.
 
 ## Settings
 
@@ -55,6 +77,8 @@ hot-reloads on save. The bar UI writes to this same place.
 | `cycleWindows` | `true` | Re-clicking a focused app advances to its next window |
 | `showAddButton` | `true` | Show the trailing `+` for pinning apps |
 | `showRunningApps` | `true` | Also show open apps that are not pinned |
+| `showSeparator` | `true` | Draw a separator between pinned and running icons |
+| `attentionFlash` | `true` | Flash an icon when one of its windows asks for attention |
 
 > **Disabling the widget discards your pins.** Omarchy stores widget settings
 > inline on the bar layout entry, and disabling removes that entry. Copy the
@@ -69,6 +93,15 @@ omarchy plugin remove io.github.joeyvigil.taskbar
 This takes the pin list with it, for the same reason as above.
 
 ## Changes
+
+**0.5.0** — Right-click now opens an anchored context menu at the icon,
+listing the app's windows so you can focus a specific one, with a `✕` on
+each row to close it. The menu also closes one window or all of them, and is
+where reordering and pinning now live (`Move left` / `Move right`, `Pin to
+taskbar`, `Unpin`). Running apps you haven't pinned now appear in the order
+you opened them rather than alphabetically, with a separator between the
+pinned and running groups (`showSeparator`). Icons flash in the theme's
+urgent colour when a window asks for attention (`attentionFlash`).
 
 **0.4.1** — Pinning works again on Omarchy 4.0.3. That release tightened
 what plugins may write to the bar config, and the taskbar's pin, unpin, and
