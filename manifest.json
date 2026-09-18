@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "io.github.thevideinfra.omataskbar",
-  "name": "Omataskbar",
+  "name": "omataskbar",
   "version": "0.5.0",
   "author": "thevideinfra",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "Omataskbar",
+    "displayName": "omataskbar",
     "description": "Pinned app icons with running indicators; left = launch or focus, right = context menu with the app's windows and how to close them, middle = new instance",
     "category": "Launcher",
     "allowMultiple": false,

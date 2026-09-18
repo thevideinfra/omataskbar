@@ -1,4 +1,4 @@
-# Omataskbar
+# omataskbar
 
 Pinned app icons for the [Omarchy](https://omarchy.org/) bar.
 
@@ -100,7 +100,7 @@ This takes the pin list with it, for the same reason as above.
 
 ## Changes
 
-**0.5.0** — First release as Omataskbar, under its own plugin id
+**0.5.0** — First release as omataskbar, under its own plugin id
 (`io.github.thevideinfra.omataskbar`); the entries below are upstream's and
 use its id. Right-click now opens an anchored context menu at the icon,
 listing the app's windows so you can focus a specific one, with a `✕` on
