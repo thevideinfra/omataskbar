@@ -12,7 +12,19 @@ indicator under each icon shows what's running and which app you're in.
 
 Pin and unpin from the bar itself. No config file editing.
 
-![The taskbar in the Omarchy bar](docs/bar.png)
+## Before and after
+
+**Upstream omarchy-taskbar 0.4.1** — pinned icons and a `+`; right-clicking an
+icon opened Omarchy's menu in the middle of the screen, and running apps were
+sorted alphabetically.
+
+![Upstream omarchy-taskbar in the Omarchy bar](docs/upstream-bar.png)
+
+**omataskbar** — the menu opens at the icon and lists the app's windows, each
+with a `✕` to close it. Running apps follow the order you opened them, after a
+separator, and icons flash when a window asks for attention.
+
+<img src="preview.png" alt="omataskbar's right-click menu at the icon" width="442">
 
 ## Install
 
@@ -32,7 +44,7 @@ enabled; everything else, the right-click menu included, works without it.
 | **Left click** (already focused) | Cycle to that app's next window |
 | **Middle click** | Always launch a new instance |
 | **Right click** | Open a context menu at the icon: the app's windows (click one to focus it), then new instance, move left/right, pin/unpin, and close |
-| **Click the `+`** | Pin an app, from a searchable list of everything installed |
+| **Click the `+`** | Pin an app, from a searchable list of everything installed. Shown whenever nothing is pinned, even with `showAddButton` off |
 | **Hover** | App name, plus window count when more than one is open |
 
 The context menu lists each open window by title — click one to focus it, or
@@ -99,6 +111,11 @@ omarchy plugin remove io.github.thevideinfra.omataskbar
 This takes the pin list with it, for the same reason as above.
 
 ## Changes
+
+**0.5.1** — The `+` now always shows, and works, while nothing is pinned,
+even if `showAddButton` was turned off. It used to leave a dead placeholder
+icon, so unpinning everything left no way back from the bar itself. New
+preview and a before/after comparison in this README.
 
 **0.5.0** — First release as omataskbar, under its own plugin id
 (`io.github.thevideinfra.omataskbar`); the entries below are upstream's and
