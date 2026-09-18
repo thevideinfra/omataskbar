@@ -18,14 +18,22 @@ Seven changes, all driven by observed behaviour on the maintainer's desktop:
    app id in `~/.local/share/applications/Btop.desktop`) get a real icon and
    name rather than a letter tile.
 5. A separator divides the pinned group from the running group.
-6. Pinned icons can be reordered by dragging, and a running icon can be dragged
-   into the pinned strip to pin it at that position.
+6. ~~Drag to reorder~~ — dropped 2026-09-17, see Non-goals.
 7. Windows that request attention flash their icon.
+8. The context menu can close one window (a ✕ on its row) or all of the app's
+   windows (added 2026-09-17).
 
 Middle-click keeps its current behaviour (launch a new instance).
 
 ## Non-goals
 
+- Drag to reorder or to pin (dropped 2026-09-17 by the user). The host bar
+  owns every left press on a widget: in `plugins/bar/Bar.qml` the ModuleSlot's
+  `modulePointer` MouseArea is declared after the `registryLoader` that hosts
+  plugin widgets, fills the slot, and starts the bar's own module drag on a
+  left press-and-move; plugin widgets only receive left clicks forwarded
+  through `pressModuleClickTarget`. A widget cannot see a left drag without
+  host changes. Reordering and pinning stay in the context menu.
 - Per-window icons (an "ungrouped" taskbar mode). Grouping with a window
   submenu was chosen instead; a second layout mode would double the delegate
   and drag code paths for no observed need.
@@ -177,21 +185,8 @@ when both groups are non-empty. New setting `showSeparator`, default `true`.
 
 ### 6. Drag
 
-Modelled on the bar's own module drag (`plugins/bar/Bar.qml:1640`): the press
-is not treated as a drag until the pointer passes a small threshold, so a
-normal click still launches or focuses. The dragged slot follows the pointer
-and the other slots shift to show the drop position.
-
-- A pinned slot dropped inside the pinned strip reorders it, persisted through
-  `mutateApps` (which already merges the other stored settings).
-- A running slot dropped inside the pinned strip pins it at that index — the
-  `pinRunning()` path plus an insertion index.
-- A running slot dropped over the running group does nothing; running order is
-  open order and is not hand-sortable.
-- A drag released outside the widget does nothing.
-
-`Move left` / `Move right` stay in the menu: drag needs pointer precision that
-a 26-pixel icon does not always give.
+Dropped; see Non-goals. `Move left` / `Move right` and `Pin to taskbar` in the
+menu cover reordering and pinning.
 
 ### 7. Attention flash
 
@@ -202,6 +197,26 @@ is focused. New setting `attentionFlash`, default `true`.
 Note for the README: this fires only for clients that actually request
 activation through Hyprland. A bare `notify-send` does not make any window
 urgent, so nothing will flash for it.
+
+### 8. Close
+
+Window rows get a ✕ at their right edge, shown while the row is hovered, that
+closes that one window. The last action row reads `Close window` when the app
+has one window and `Close all windows` when it has several; it is absent when
+the app has no windows.
+
+Closing never passes an address to Hyprland's close dispatcher. Hyprland
+0.56's Lua dispatcher ignores arguments it does not recognise and acts on the
+active window — a probe with a bogus address closed real windows during this
+work. So each close is: focus the window with the existing `focusCommand`
+(pointer held still), check that `hyprctl -j activewindow` now reports exactly
+that address, and only then run `hl.dsp.window.close()`, the same call
+Omarchy's SUPER+W binding uses. If the check fails nothing is closed. On
+pre-Lua configs the Lua call fails and the legacy
+`closewindow address:0x…` — which names its target explicitly — runs instead.
+`Close all windows` runs the guarded sequence for each window in one shell, in
+order. Apps receive a normal close request, so ones with unsaved work can
+still prompt.
 
 ## Settings
 
@@ -226,7 +241,10 @@ pragma line stripped. Test-driven, one commit per behaviour:
 - exec app id index: `--app-id=` and `--class=` forms, quoting, first-wins on a
   duplicate id, entries with no `Exec`
 - menu rows: window rows present or absent, focused marker, action rows by
-  pinned state and position
+  pinned state and position, the close row's presence and label
+- close command: refuses anything that is not a hex address, targets the
+  normalised `0x` address in the guard, never passes arguments to
+  `hl.dsp.window.close()`
 - unchanged behaviour kept under test: matching, grouping, `movedRecords`,
   `serialize`, `normalizeApps` on `QVariantList`-like input
 

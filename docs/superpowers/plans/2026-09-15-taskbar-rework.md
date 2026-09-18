@@ -1310,6 +1310,8 @@ git commit -m "feat: separate the pinned group from the running group"
 
 ### Task 7: Drag to reorder pins, and drag a running app onto the pinned strip
 
+> **DROPPED 2026-09-17 by user decision — do not execute.** The host bar owns every left press on a widget (`plugins/bar/Bar.qml`: ModuleSlot's `modulePointer` MouseArea sits above the plugin loader and starts the bar's own module drag), so a widget never sees a left drag. Reordering and pinning stay in the context menu. Text kept for reference only.
+
 **Files:**
 - Modify: `AppModel.js` (add `reorderedRecords`, `insertRecordAt`)
 - Modify: `Slot.qml` (drag MouseArea over the button)
@@ -1828,7 +1830,277 @@ git commit -m "feat: flash icons for windows that ask for attention"
 
 ---
 
+### Task 10: Close from the context menu
+
+Added 2026-09-17 at the user's request. Runs after Task 8 and before Task 9, so Task 9's docs can describe it. Spec section: "8. Close".
+
+Each window row gets a ✕ that closes that window; a last action row closes all of the app's windows. Closing never passes an address to Hyprland's close dispatcher: Hyprland 0.56's Lua dispatcher ignores arguments it does not recognise and acts on the active window, and a probe with a bogus address closed real windows during this work. Each close focuses the window first, checks it really became active, and only then closes the active window.
+
+**Files:**
+- Modify: `AppModel.js` (`menuRows`; add `closeCommand` after it)
+- Modify: `BarWidget.qml` (`runAction`; add `closeCommandFor`, `closeAddress`, `closeAll`)
+- Modify: `TaskbarMenu.qml` (✕ on window rows)
+- Modify: `tests/menu-rows.test.mjs`
+- Create: `tests/close-command.test.mjs`
+- Modify: `tests/helpers/load-app-model.mjs` (`EXPORTED`)
+
+**Interfaces:**
+- Consumes: `menuRows` (Task 5), `focusCommand(descriptor)` and `root.bar.run(command)` (existing), `runAction(key, action)` (existing).
+- Produces:
+  - `menuRows(...)` gains a final `{ kind: "action", action: "close", label }` row when the app has windows. The label is `"Close window"` for one window and `"Close all windows"` for several.
+  - `closeCommand(address)` → shell string that closes the active window only if its address equals the normalised `0x` form of `address`, or `""` when `address` is not a bare or `0x`-prefixed hex string.
+  - On `BarWidget`: `closeCommandFor(descriptor)`, `closeAddress(address)`, `closeAll(record)`, and a `"close"` verb in `runAction`.
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `tests/close-command.test.mjs`:
+
+```js
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { loadAppModel } from "./helpers/load-app-model.mjs"
+
+const AppModel = await loadAppModel()
+
+test("refuses anything that is not a hex address", () => {
+  for (const bad of ["", null, undefined, "nothex", "0x", "12 34", "0x12; rm -rf ~", "5cf3$(id)"]) {
+    assert.equal(AppModel.closeCommand(bad), "", String(bad))
+  }
+})
+
+test("guards on the normalised 0x address, bare or prefixed, any case", () => {
+  for (const input of ["5cf37911ce00", "0x5cf37911ce00", "0X5CF37911CE00"]) {
+    const command = AppModel.closeCommand(input)
+    assert.match(command, /hyprctl -j activewindow/)
+    assert.ok(command.includes('= "0x5cf37911ce00" ]'), command)
+  }
+})
+
+test("never passes arguments to the Lua close dispatcher", () => {
+  const command = AppModel.closeCommand("abc123")
+  assert.ok(command.includes("hyprctl dispatch 'hl.dsp.window.close()'"), command)
+  assert.doesNotMatch(command, /window\.close\(\s*[^)\s]/)
+})
+
+test("the legacy fallback names its target and only runs inside the guard", () => {
+  const command = AppModel.closeCommand("abc123")
+  assert.ok(command.includes("closewindow address:0xabc123"), command)
+  assert.ok(command.startsWith("if [ "), command)
+  assert.ok(command.trimEnd().endsWith("fi"), command)
+})
+```
+
+In `tests/menu-rows.test.mjs`, update the three tests whose expectations change, and leave the other two untouched:
+
+```js
+test("a running pinned app lists a header, its windows, then its actions", () => {
+  const rows = AppModel.menuRows(pin, windows, "b", 1, 3, false, "Foot")
+  assert.deepEqual(kinds(rows), [
+    "header", "separator", "window", "window", "separator", "action", "action", "action", "action", "action"
+  ])
+  assert.equal(rows[0].label, "Foot")
+  assert.deepEqual(rows.filter(r => r.kind === "window").map(r => r.label), ["cliamp", "Taskbar plugin"])
+  assert.deepEqual(rows.filter(r => r.kind === "window").map(r => r.active), [false, true])
+  assert.deepEqual(actions(rows), ["launch", "back", "forward", "unpin", "close"])
+  assert.equal(rows[rows.length - 1].label, "Close all windows")
+})
+
+test("an app with no windows has no window rows", () => {
+  const rows = AppModel.menuRows(pin, [], "", 0, 1, false, "Foot")
+  assert.deepEqual(kinds(rows), ["header", "separator", "action", "action"])
+  assert.deepEqual(actions(rows), ["launch", "unpin"])
+})
+
+test("a running app that is not pinned offers pinning instead of unpinning", () => {
+  const record = { desktopId: "com.obsproject.Studio", key: "unpinned:com.obsproject.Studio", unpinned: true }
+  const rows = AppModel.menuRows(record, [{ address: "z", title: "OBS" }], "z", -1, 2, false, "OBS Studio")
+  assert.deepEqual(actions(rows), ["launch", "pin", "close"])
+  assert.equal(rows.find(r => r.kind === "window").active, true)
+  assert.equal(rows[rows.length - 1].label, "Close window")
+})
+```
+
+(The "no windows" test is unchanged in content; it is listed so the absence of a close row with no windows stays pinned down.)
+
+Add `"closeCommand"` to `EXPORTED` in `tests/helpers/load-app-model.mjs`.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npm test`
+Expected: FAIL — `AppModel.closeCommand is not a function`, and the two amended menu-rows tests fail on the missing `close` action.
+
+- [ ] **Step 3: Implement**
+
+In `AppModel.js`, replace the tail of `menuRows` — from `if (record.unpinned) {` to the closing `return rows` — with:
+
+```js
+  if (record.unpinned) {
+    rows.push({ kind: "action", action: "pin", label: "Pin to taskbar" })
+  } else {
+    if (pinnedIndex > 0) {
+      rows.push({ kind: "action", action: "back", label: vertical ? "Move up" : "Move left" })
+    }
+    if (pinnedIndex >= 0 && pinnedIndex < pinnedCount - 1) {
+      rows.push({ kind: "action", action: "forward", label: vertical ? "Move down" : "Move right" })
+    }
+    rows.push({ kind: "action", action: "unpin", label: "Unpin" })
+  }
+
+  if (all.length > 0) {
+    rows.push({
+      kind: "action",
+      action: "close",
+      label: all.length > 1 ? "Close all windows" : "Close window"
+    })
+  }
+  return rows
+}
+```
+
+After `menuRows`, add:
+
+```js
+// The shell step that closes `address`, run right after focusing it.
+//
+// The close itself never names its target. Hyprland 0.56's Lua dispatcher
+// ignores arguments it does not recognise and acts on the active window — a
+// probe with a bogus address closed real windows during development. So this
+// closes the *active* window, the same call Omarchy's SUPER+W uses, and only
+// when the compositor confirms the active window is the one asked for. On a
+// pre-Lua config the Lua call fails and the legacy dispatcher, which does name
+// its target, runs instead — still inside the guard.
+//
+// Anything that is not a bare or 0x-prefixed hex address yields "", so bad
+// input can never reach a shell or close anything.
+function closeCommand(address) {
+  var hex = String(address === null || address === undefined ? "" : address).replace(/^0x/i, "")
+  if (!/^[0-9a-f]+$/i.test(hex)) return ""
+  var target = "0x" + hex.toLowerCase()
+  return "if [ \"$(hyprctl -j activewindow 2>/dev/null | jq -r '.address // empty')\" = \"" + target + "\" ]; then "
+    + "hyprctl dispatch 'hl.dsp.window.close()' >/dev/null 2>&1 || "
+    + "hyprctl dispatch closewindow address:" + target + " >/dev/null 2>&1; fi"
+}
+```
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `npm test`
+Expected: PASS, every file.
+
+- [ ] **Step 5: Wire the close into the widget**
+
+In `BarWidget.qml`, after `focusWindow`, add:
+
+```qml
+  // One window's close: focus it (pointer held still), then close it only if
+  // it really became the active window. AppModel.closeCommand explains why
+  // the close never names its target. "" when the address is unusable.
+  function closeCommandFor(descriptor) {
+    var close = AppModel.closeCommand(descriptor ? descriptor.address : "")
+    if (!close) return ""
+    return root.focusCommand(descriptor) + "; " + close
+  }
+
+  function closeAddress(address) {
+    var target = String(address || "")
+    if (!target || !root.bar || typeof root.bar.run !== "function") return
+    for (var i = 0; i < root.windows.length; i++) {
+      if (root.windows[i].address !== target) continue
+      var command = root.closeCommandFor(root.windows[i])
+      if (command) root.bar.run(command)
+      return
+    }
+  }
+
+  // Every window of the record, in one shell and in order, each close guarded
+  // on its own focus, so one window refusing focus cannot redirect a close.
+  function closeAll(record) {
+    if (!record || !root.bar || typeof root.bar.run !== "function") return
+    var matched = AppModel.windowsFor(record, root.windows)
+    var commands = []
+    for (var i = 0; i < matched.length; i++) {
+      var command = root.closeCommandFor(matched[i])
+      if (command) commands.push(command)
+    }
+    if (commands.length > 0) root.bar.run(commands.join("; "))
+  }
+```
+
+In `runAction`, after the `"pin"` branch, add:
+
+```qml
+    if (action === "close") {
+      root.closeAll(root.recordForKey(key))
+      return
+    }
+```
+
+- [ ] **Step 6: Add the ✕ to window rows**
+
+In `TaskbarMenu.qml`, in the row delegate, change the label `Text`'s right margin so a title never runs under the ✕:
+
+```qml
+          anchors.rightMargin: row.modelData.kind === "window" ? Style.space(30) : Style.space(10)
+```
+
+Then add these two items after `MouseArea { id: rowMouse ... }`, so they sit above it and take the click:
+
+```qml
+        // Closes just this window. Declared after rowMouse so it sits on top
+        // and takes the click; shown while the row is hovered.
+        Text {
+          visible: row.modelData.kind === "window" && (rowMouse.containsMouse || closeMouse.containsMouse)
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.right: parent.right
+          anchors.rightMargin: Style.space(8)
+          text: "✕"
+          color: menu.foreground
+          opacity: closeMouse.containsMouse ? 1.0 : 0.6
+          font.family: menu.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+
+        MouseArea {
+          id: closeMouse
+          visible: row.modelData.kind === "window"
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+          anchors.right: parent.right
+          width: Style.space(26)
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            host.closeAddress(row.modelData.address)
+            host.closeMenu()
+          }
+        }
+```
+
+- [ ] **Step 7: Verify**
+
+Unit tests as above. Live, under the implementer contract's safety rules (no `hyprctl dispatch`, one cold restart after the automatic reload settles): the journal shows no new warnings for `TaskbarMenu`, `BarWidget.qml`, `TypeError`, `ReferenceError`, `Cannot assign`; a screenshot shows the bar unchanged at rest.
+
+Manual checks for the user:
+1. Right-click an app with two or more windows: the last row reads "Close all windows"; hovering a window row shows a ✕ at its right edge.
+2. Click a window row's ✕: that window closes, others stay, the menu closes, the pointer does not move.
+3. Right-click an app with one window: the last row reads "Close window"; clicking it closes that window.
+4. "Close all windows" on a terminal with several windows: all of them close.
+5. An app with unsaved work (for example a text editor) still asks before closing.
+6. A pinned app with no windows shows no close row.
+
+- [ ] **Step 8: Commit**
+
+```bash
+cd /home/ks/Projects/newtaskbar
+git add AppModel.js BarWidget.qml TaskbarMenu.qml tests
+git commit -m "feat: close one window or all of an app's windows from its menu"
+```
+
+---
+
 ### Task 9: Document the reworked widget
+
+Runs last, after Task 10.
 
 **Files:**
 - Modify: `README.md`
@@ -1844,7 +2116,8 @@ git commit -m "feat: flash icons for windows that ask for attention"
 Cover, in the existing voice and structure:
 - Left click launches or focuses and cycles windows; middle click opens a new instance; right click opens a context menu at the icon listing the app's windows and its actions.
 - Running apps that are not pinned appear after the pinned ones in the order they were opened, and a separator divides the two groups (`showSeparator`).
-- Drag a pinned icon to reorder it; drag a running icon into the pinned strip to pin it there.
+- The context menu can close one window (✕ on its row, shown on hover) or all of the app's windows (`Close window` / `Close all windows`).
+- Reordering and pinning are in the context menu (`Move left` / `Move right`, `Pin to taskbar`). Drag is not supported: the Omarchy bar owns left-drags on widgets (it uses them to move the whole widget within the bar).
 - Icons flash in the theme's urgent colour when a window asks for attention (`attentionFlash`), and only clients that actually request activation can trigger it — a bare `notify-send` cannot.
 - The two new settings, in the same table format the README already uses for the others.
 - A note that grouping is per window class, so several TUIs launched with the same `--app-id` (for example `--app-id=TUI.tile`) share one icon and resolve to one desktop entry; give per-app ids such as `--app-id=org.omarchy.btop`, which is what `omarchy-launch-tui` does by default.
@@ -1854,7 +2127,8 @@ Cover, in the existing voice and structure:
 Add short notes for the new seams:
 - `AppModel.js` is unit-tested with `npm test` (`node --test`, which auto-discovers `tests/`); the loader strips `.pragma library` and appends exports, so a new pure function must be added to `EXPORTED` in `tests/helpers/load-app-model.mjs` to be testable.
 - The menu is a `PopupCard` from `qs.Ui`, the host component the tray uses; the plugin bar facade exposes exactly the `requestPopout` / `releasePopout` / `activePopout` / `position` it needs.
-- The drag deliberately sets no `drag.target`, because slots are positioner children; the drop marker is drawn in the widget root instead, and the same reasoning is written down in the host bar at `plugins/bar/Bar.qml:1917`.
+- The host bar's `modulePointer` (`plugins/bar/Bar.qml`) takes every left press on a widget; plugin widgets only get left clicks forwarded via `pressModuleClickTarget`, and a left drag moves the whole widget. That is why the widget has no drag gestures.
+- Closing never names its target to Hyprland's close dispatcher (`AppModel.closeCommand`): it focuses the window, checks `hyprctl -j activewindow`, and only then closes the active window. Hyprland 0.56's Lua dispatcher ignores unknown arguments and acts on the active window, so an address argument is not a safe target.
 - Running-app order lives in memory (`seenAt`) and is reseeded from the compositor's list after a shell restart.
 
 - [ ] **Step 3: Bump the version**
@@ -1863,12 +2137,12 @@ In `manifest.json`, set `"version": "0.5.0"`.
 
 - [ ] **Step 4: Verify the docs match the code**
 
-Read `README.md` against `manifest.json`'s `schema`: every setting documented, every documented setting present, defaults agreeing. Run `npm test` once more and `omarchy restart shell`, then walk the full manual list: anchored menu, window rows, open order, btop's icon, separator, drag both ways, flash.
+Read `README.md` against `manifest.json`'s `schema`: every setting documented, every documented setting present, defaults agreeing. Run `npm test` once more and `omarchy restart shell`, then walk the full manual list: anchored menu, window rows, close, open order, btop's icon, separator, flash.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /home/ks/Projects/newtaskbar
 git add README.md docs/development.md manifest.json
-git commit -m "docs: describe the context menu, ordering, separator, drag and flash"
+git commit -m "docs: describe the context menu, close, ordering, separator and flash"
 ```
