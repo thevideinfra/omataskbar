@@ -16,7 +16,8 @@ omarchy plugin add https://github.com/joeyvigil/omarchy-taskbar.git --enable --y
 omarchy bar move io.github.joeyvigil.taskbar --section left
 ```
 
-Needs Omarchy 4+, with the built-in `omarchy.menu` plugin enabled.
+Needs Omarchy 4+. The `+` picker also needs the built-in `omarchy.menu` plugin
+enabled; everything else, the right-click menu included, works without it.
 
 ## Using it
 
@@ -38,10 +39,10 @@ no drag, since the Omarchy bar itself uses a left-drag on any widget to move
 that widget within the bar.
 
 Open an app you haven't pinned and it gets an icon too, after the pinned
-ones, in the order you opened them, with the same click behaviour. A
-separator divides the pinned icons from the running ones (`showSeparator`).
-That icon disappears when its last window closes. Right-click it and choose
-**Pin to taskbar** to keep it for good. Turn running icons off entirely with
+ones, in the order you opened them, with the same click behaviour. That icon
+disappears when its last window closes. Right-click it and choose
+**Pin to taskbar** to keep it for good. A separator divides the pinned icons
+from the running ones (`showSeparator`). Turn running icons off entirely with
 `showRunningApps` if you only want the apps you chose.
 
 An icon flashes in the theme's urgent colour when one of its windows asks for

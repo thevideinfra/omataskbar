@@ -67,10 +67,15 @@ used: it forwards through `qs ipc call`, which splits every argument on
 commas, so any array past one element arrives as extra positional arguments
 and the call is rejected.
 
-Files under `~/.config/omarchy/plugins/` hot-reload on save. If you develop from
-a checkout elsewhere and symlink it in, `inotify` won't see through the symlink
-— reload by hand with `omarchy-shell shell rescanPlugins`, and restart the
-shell outright when you touch anything settings-related.
+Files under `~/.config/omarchy/plugins/` hot-reload on save, and in practice
+Quickshell's own watcher has also reloaded through a symlink to a checkout
+elsewhere (journal: "Directory change detected, performing full rescan") — but
+not reliably. Don't lean on `omarchy-shell shell rescanPlugins` to fill the
+gap: it can keep a cached component, so what you see afterwards may not be
+your edit. After editing, let any automatic reload settle (or wait ~60 s with
+no reload activity), then do one cold `omarchy restart shell`. Restarting
+while a reload is still creating objects has crashed Quickshell, so don't
+restart mid-reload, and don't restart twice in quick succession.
 
 For the design and history behind the context menu, ordering, separator and
 attention-flash work, see

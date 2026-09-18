@@ -74,12 +74,12 @@ Four files instead of two:
 ```
 BarWidget.qml     settings, model assembly, event wiring, launch/focus, pin persistence
 AppModel.js       pure logic: normalize, match, group, open order, menu rows, id index
-Slot.qml          one icon: image or letter tile, running indicator, urgent flash, drag source
+Slot.qml          one icon: image or letter tile, running indicator, urgent flash
 TaskbarMenu.qml   PopupCard: window rows and action rows
 ```
 
-The delegate leaves `BarWidget.qml` because it gains a drag state machine and a
-flash animation; the menu is a new component. Both are self-contained and read
+The delegate leaves `BarWidget.qml` because it gains a flash animation; the
+menu is a new component. Both are self-contained and read
 independently. All decision logic stays in `AppModel.js`, which is a
 `.pragma library` of pure functions over plain descriptors — the only part of
 the plugin that can be unit tested.
@@ -190,9 +190,10 @@ menu cover reordering and pinning.
 
 ### 7. Attention flash
 
-When a slot is urgent, its icon and running indicator pulse in the bar's
-`urgent` colour roughly three times, then hold a steady tint until the window
-is focused. New setting `attentionFlash`, default `true`.
+When a slot is urgent, a tint behind its icon pulses in the bar's `urgent`
+colour three times, then holds steady until the window is focused. The
+running indicator turns the `urgent` colour for as long as the slot is urgent;
+it does not pulse. New setting `attentionFlash`, default `true`.
 
 Note for the README: this fires only for clients that actually request
 activation through Hyprland. A bare `notify-send` does not make any window
@@ -256,8 +257,9 @@ Manual checklist: anchored menu on both a pinned and a running icon and on a
 bottom bar; focus a specific window from the menu; open three apps in sequence
 and confirm left-to-right order, then close a middle one and confirm no slot
 moves; btop shows its own icon and name; separator appears only with both
-groups present; drag reorder persists across a shell restart; drag a running
-icon into the pinned strip; urgent flash clears on focus.
+groups present; Move left/right reorder persists across a shell restart;
+Pin to taskbar moves a running icon into the pinned strip; urgent flash clears
+on focus.
 
 ## Rollout
 
@@ -285,9 +287,6 @@ would replace it, so it must not be run for this plugin.
   change it and break the menu. Accepted: the tray depends on it the same way,
   and the alternative is a hand-built `PopupWindow` that would drift from the
   theme.
-- Drag and click share one press. Getting the threshold wrong breaks launching,
-  which is the widget's primary action. The bar's own drag code is the
-  reference, and the manual checklist tests plain clicks after the drag work.
 - `seenAt` lives in memory, so a shell restart reseeds the running order from
   the compositor's list. Accepted over persisting UI-only state to
   `shell.json`.
