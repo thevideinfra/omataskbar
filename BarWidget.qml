@@ -14,10 +14,12 @@ import "AppModel.js" as AppModel
 // matched to entries by app id / window class, which is also what drives the
 // running indicator under each icon.
 //
-// Pinning is done from the bar itself: the trailing + opens an app picker and
-// right-clicking an icon opens its actions. Both borrow the Omarchy menu's
-// dmenu mode rather than growing a second picker UI, and both persist through
-// `omarchy bar set`, so shell.json stays the single source of truth.
+// Pinning is done from the bar itself. The trailing + opens an app picker,
+// which borrows the Omarchy menu's dmenu mode rather than growing a second
+// picker UI; right-clicking an icon opens the widget's own context menu
+// (TaskbarMenu.qml). Pin edits from either are written to this widget's own
+// shell.json entry (see mutateApps), so shell.json stays the single source of
+// truth.
 BarWidget {
   id: root
   moduleName: "io.github.joeyvigil.taskbar"
@@ -29,13 +31,18 @@ BarWidget {
   readonly property var pinned: AppModel.normalizeApps(root.setting("apps", []))
   readonly property int iconSize: Math.max(8, root.setting("iconSize", 17))
   readonly property int gap: Math.max(0, root.setting("spacing", 2))
-  readonly property bool runningIndicator: root.setting("runningIndicator", true) === true
-  readonly property bool dimWhenClosed: root.setting("dimWhenClosed", true) === true
-  readonly property bool cycleWindows: root.setting("cycleWindows", true) === true
-  readonly property bool showAddButton: root.setting("showAddButton", true) === true
-  readonly property bool showRunningApps: root.setting("showRunningApps", true) === true
-  readonly property bool showSeparator: root.setting("showSeparator", true) === true
-  readonly property bool attentionFlash: root.setting("attentionFlash", true) === true
+  readonly property bool runningIndicator: root.boolSetting("runningIndicator", true)
+  readonly property bool dimWhenClosed: root.boolSetting("dimWhenClosed", true)
+  readonly property bool cycleWindows: root.boolSetting("cycleWindows", true)
+  readonly property bool showAddButton: root.boolSetting("showAddButton", true)
+  readonly property bool showRunningApps: root.boolSetting("showRunningApps", true)
+  readonly property bool showSeparator: root.boolSetting("showSeparator", true)
+  readonly property bool attentionFlash: root.boolSetting("attentionFlash", true)
+
+  // `omarchy bar set` stores "true"/"false" strings; see AppModel.toBool.
+  function boolSetting(name, fallback) {
+    return AppModel.toBool(root.setting(name, fallback), fallback)
+  }
 
   // Addresses Hyprland reported as urgent, used as a set. A plain object
   // rather than a list: membership is what every slot asks about.
@@ -367,6 +374,10 @@ BarWidget {
   }
 
   function handlePress(record, button, anchor) {
+    // The menu's focus grab includes the bar window, so a press on another
+    // icon does not dismiss it by itself; without this the menu would stay
+    // open, anchored to the old icon, while this press launches or focuses.
+    if (button !== Qt.RightButton && root.menuOpen) root.closeMenu()
     if (button === Qt.MiddleButton) {
       root.launch(record)
       return
@@ -518,10 +529,8 @@ BarWidget {
 
   // ------------------------------------------------------------------ picker
 
-  function runPicker(kind, context, prompt, options) {
+  function runPicker(prompt, options) {
     if (pickerProc.running) return
-    pickerProc.kind = kind
-    pickerProc.context = context
     var command = Util.shellQuote(root.pickerPath) + " " + Util.shellQuote(prompt)
     for (var i = 0; i < options.length; i++) command += " " + Util.shellQuote(options[i])
     pickerProc.command = ["bash", "-lc", command]
@@ -548,7 +557,7 @@ BarWidget {
     }
 
     if (options.length === 0) return
-    root.runPicker("add", "", "Pin app", options)
+    root.runPicker("Pin app", options)
   }
 
   function recordForKey(key) {
@@ -601,14 +610,14 @@ BarWidget {
     return outcome
   }
 
-  // The menu returns "<label>\t<value>"; the value is the field we set.
-  function onPicked(kind, context, raw) {
+  // The picker returns "<label>\t<desktop id>"; pin the id.
+  function onPicked(raw) {
     var text = String(raw || "").trim()
     if (!text) return
     var parts = text.split("\t")
     var value = parts[parts.length - 1]
     if (!value) return
-    if (kind === "add") root.pinApp(value)
+    root.pinApp(value)
   }
 
   // ------------------------------------------------------------------- menu
@@ -645,17 +654,22 @@ BarWidget {
   }
 
   // Rows are rebuilt from live state so the open menu follows windows opening
-  // and closing and the focused-window dot, but reassigned only when the
-  // result actually changed: every window event reaches `onWindowsChanged`
-  // (including continuous windowtitle events), and a fresh array on every one
-  // would tear down and rebuild every row delegate in TaskbarMenu's Repeater
-  // — the same hazard refreshUnpinned's fingerprint guards the icon Repeater
-  // against. Rows are plain data, so JSON.stringify is a cheap-enough compare.
+  // and closing and the focused-window dot. Every window event reaches
+  // `onWindowsChanged`, including the continuous windowtitle ones, and handing
+  // TaskbarMenu's Repeater a fresh array tears down and rebuilds every row
+  // delegate — mid-hover and mid-click — the same hazard refreshUnpinned's
+  // fingerprint guards the icon Repeater against. So titles travel separately:
+  // `menuRows` is reassigned only when the structure changes
+  // (AppModel.menuStructureKey ignores window titles), and window rows read
+  // their title from `menuTitles` (address -> title), which can change on
+  // every tick without rebuilding anything.
   property var menuRows: []
+  property var menuTitles: ({})
 
   function refreshMenuRows() {
     if (!root.menuRecord) {
       if (root.menuRows.length > 0) root.menuRows = []
+      if (Object.keys(root.menuTitles).length > 0) root.menuTitles = ({})
       return
     }
     var record = root.menuRecord
@@ -666,7 +680,12 @@ BarWidget {
       root.pinned.length,
       root.vertical,
       root.labelFor(record))
-    if (JSON.stringify(next) !== JSON.stringify(root.menuRows)) root.menuRows = next
+    // Titles first, so delegates built by a structure change bind to the
+    // current titles from the start.
+    var titles = AppModel.menuTitles(next)
+    if (JSON.stringify(titles) !== JSON.stringify(root.menuTitles)) root.menuTitles = titles
+    if (AppModel.menuStructureKey(next) !== AppModel.menuStructureKey(root.menuRows))
+      root.menuRows = next
   }
 
   function focusAddress(address) {
@@ -734,11 +753,9 @@ BarWidget {
 
   Process {
     id: pickerProc
-    property string kind: ""
-    property string context: ""
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.onPicked(pickerProc.kind, pickerProc.context, text)
+      onStreamFinished: root.onPicked(text)
     }
   }
 

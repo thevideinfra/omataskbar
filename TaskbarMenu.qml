@@ -48,6 +48,13 @@ PopupCard {
         readonly property bool isSeparator: modelData.kind === "separator"
         readonly property bool isHeader: modelData.kind === "header"
         readonly property bool clickable: modelData.kind === "window" || modelData.kind === "action"
+        // Window titles come from host.menuTitles, which updates in place;
+        // the row's own label is only the title as of the last rebuild.
+        readonly property string displayText: {
+          if (modelData.kind !== "window") return String(modelData.label || "")
+          var title = menu.host.menuTitles[modelData.address]
+          return title !== undefined ? String(title) : String(modelData.label || "")
+        }
 
         width: column.width
         implicitHeight: row.isSeparator ? menu.separatorHeight : menu.rowHeight
@@ -65,7 +72,7 @@ PopupCard {
         }
 
         Rectangle {
-          visible: rowMouse.containsMouse && row.clickable
+          visible: (rowMouse.containsMouse || closeMouse.containsMouse) && row.clickable
           anchors.fill: parent
           radius: Math.max(2, Style.cornerRadius)
           color: Style.hoverFillFor(menu.foreground, menu.foreground)
@@ -93,7 +100,7 @@ PopupCard {
           anchors.leftMargin: row.modelData.kind === "window" ? Style.space(28) : Style.space(10)
           anchors.right: parent.right
           anchors.rightMargin: row.modelData.kind === "window" ? Style.space(30) : Style.space(10)
-          text: row.modelData.label
+          text: row.displayText
           color: menu.foreground
           opacity: row.isHeader ? 0.6 : 1.0
           font.family: menu.fontFamily

@@ -30,7 +30,10 @@ const EXPORTED = [
   "movedRecords",
   "serialize",
   "menuRows",
-  "closeCommand"
+  "closeCommand",
+  "menuStructureKey",
+  "menuTitles",
+  "toBool"
 ]
 
 export async function loadAppModel() {

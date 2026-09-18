@@ -21,6 +21,15 @@ function toArray(value) {
   return out
 }
 
+// `omarchy bar set` stores what it is given unconverted, so a boolean setting
+// written from the command line arrives as the string "true" or "false".
+// Accept both forms; anything else is not a decision the user made.
+function toBool(value, fallback) {
+  if (value === true || value === "true") return true
+  if (value === false || value === "false") return false
+  return fallback
+}
+
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
@@ -452,6 +461,38 @@ function menuRows(record, windows, activeAddress, pinnedIndex, pinnedCount, vert
     })
   }
   return rows
+}
+
+// Window titles change continuously (a terminal's spinner retitles it several
+// times a second), but only the row *structure* decides which delegates the
+// menu's Repeater has to build. These two split one menuRows() result along
+// that line: a key covering everything except window titles, and the titles
+// themselves keyed by address, so the menu can rebuild its rows only when the
+// key changes and repaint titles in place otherwise.
+function menuStructureKey(rows) {
+  var all = toArray(rows)
+  var shape = []
+  for (var i = 0; i < all.length; i++) {
+    var row = all[i]
+    var copy = {}
+    for (var field in row) {
+      if (row.kind === "window" && field === "label") continue
+      copy[field] = row[field]
+    }
+    shape.push(copy)
+  }
+  return JSON.stringify(shape)
+}
+
+// Address -> the title a window row shows, already carrying menuRows' fallback
+// to the app label for an untitled window.
+function menuTitles(rows) {
+  var all = toArray(rows)
+  var titles = {}
+  for (var i = 0; i < all.length; i++) {
+    if (all[i] && all[i].kind === "window") titles[all[i].address] = all[i].label
+  }
+  return titles
 }
 
 // The shell step that closes `address`, run right after focusing it.

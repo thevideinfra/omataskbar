@@ -53,6 +53,22 @@ WidgetButton {
 
   onPressed: function(button) { host.handlePress(slot.modelData, button, slot) }
 
+  // Driven from here rather than by binding the animation's `running` to
+  // `urgent`: a finished animation leaves `running` false while `urgent` is
+  // still true, so a bound `running` would neither restart for the next flash
+  // nor notice `urgent` clearing, and the held tint would outlive the focus.
+  onUrgentChanged: slot.syncAttention()
+  Component.onCompleted: slot.syncAttention()
+
+  function syncAttention() {
+    if (slot.urgent) {
+      attentionPulse.restart()
+    } else {
+      attentionPulse.stop()
+      attention.opacity = 0
+    }
+  }
+
   // Declared before the icon and letter tile so it paints underneath them
   // without needing a z-index on either.
   //
@@ -67,11 +83,11 @@ WidgetButton {
 
     SequentialAnimation {
       id: attentionPulse
-      running: slot.urgent
       loops: 3
       NumberAnimation { target: attention; property: "opacity"; to: 0.45; duration: 260; easing.type: Easing.OutCubic }
       NumberAnimation { target: attention; property: "opacity"; to: 0.12; duration: 260; easing.type: Easing.InCubic }
-      onStopped: attention.opacity = slot.urgent ? 0.18 : 0
+      // Only on a natural finish: syncAttention's stop() sets the opacity itself.
+      onFinished: attention.opacity = slot.urgent ? 0.18 : 0
     }
   }
 
