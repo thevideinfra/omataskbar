@@ -21,12 +21,13 @@ function actions(rows) {
 test("a running pinned app lists a header, its windows, then its actions", () => {
   const rows = AppModel.menuRows(pin, windows, "b", 1, 3, false, "Foot")
   assert.deepEqual(kinds(rows), [
-    "header", "separator", "window", "window", "separator", "action", "action", "action", "action"
+    "header", "separator", "window", "window", "separator", "action", "action", "action", "action", "action"
   ])
   assert.equal(rows[0].label, "Foot")
   assert.deepEqual(rows.filter(r => r.kind === "window").map(r => r.label), ["cliamp", "Taskbar plugin"])
   assert.deepEqual(rows.filter(r => r.kind === "window").map(r => r.active), [false, true])
-  assert.deepEqual(actions(rows), ["launch", "back", "forward", "unpin"])
+  assert.deepEqual(actions(rows), ["launch", "back", "forward", "unpin", "close"])
+  assert.equal(rows[rows.length - 1].label, "Close all windows")
 })
 
 test("an app with no windows has no window rows", () => {
@@ -51,8 +52,9 @@ test("move rows appear only where a neighbour exists, and read vertically on a s
 test("a running app that is not pinned offers pinning instead of unpinning", () => {
   const record = { desktopId: "com.obsproject.Studio", key: "unpinned:com.obsproject.Studio", unpinned: true }
   const rows = AppModel.menuRows(record, [{ address: "z", title: "OBS" }], "z", -1, 2, false, "OBS Studio")
-  assert.deepEqual(actions(rows), ["launch", "pin"])
+  assert.deepEqual(actions(rows), ["launch", "pin", "close"])
   assert.equal(rows.find(r => r.kind === "window").active, true)
+  assert.equal(rows[rows.length - 1].label, "Close window")
 })
 
 test("a window with no title falls back to the app label", () => {

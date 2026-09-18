@@ -303,6 +303,39 @@ BarWidget {
     }
   }
 
+  // One window's close: focus it (pointer held still), then close it only if
+  // it really became the active window. AppModel.closeCommand explains why
+  // the close never names its target. "" when the address is unusable.
+  function closeCommandFor(descriptor) {
+    var close = AppModel.closeCommand(descriptor ? descriptor.address : "")
+    if (!close) return ""
+    return root.focusCommand(descriptor) + "; " + close
+  }
+
+  function closeAddress(address) {
+    var target = String(address || "")
+    if (!target || !root.bar || typeof root.bar.run !== "function") return
+    for (var i = 0; i < root.windows.length; i++) {
+      if (root.windows[i].address !== target) continue
+      var command = root.closeCommandFor(root.windows[i])
+      if (command) root.bar.run(command)
+      return
+    }
+  }
+
+  // Every window of the record, in one shell and in order, each close guarded
+  // on its own focus, so one window refusing focus cannot redirect a close.
+  function closeAll(record) {
+    if (!record || !root.bar || typeof root.bar.run !== "function") return
+    var matched = AppModel.windowsFor(record, root.windows)
+    var commands = []
+    for (var i = 0; i < matched.length; i++) {
+      var command = root.closeCommandFor(matched[i])
+      if (command) commands.push(command)
+    }
+    if (commands.length > 0) root.bar.run(commands.join("; "))
+  }
+
   function launch(record) {
     if (!record) return
     if (record.exec) {
@@ -655,6 +688,10 @@ BarWidget {
     }
     if (action === "pin") {
       root.pinRunning(root.recordForKey(key))
+      return
+    }
+    if (action === "close") {
+      root.closeAll(root.recordForKey(key))
       return
     }
 

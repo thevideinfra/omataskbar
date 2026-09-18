@@ -434,15 +434,43 @@ function menuRows(record, windows, activeAddress, pinnedIndex, pinnedCount, vert
 
   if (record.unpinned) {
     rows.push({ kind: "action", action: "pin", label: "Pin to taskbar" })
-    return rows
+  } else {
+    if (pinnedIndex > 0) {
+      rows.push({ kind: "action", action: "back", label: vertical ? "Move up" : "Move left" })
+    }
+    if (pinnedIndex >= 0 && pinnedIndex < pinnedCount - 1) {
+      rows.push({ kind: "action", action: "forward", label: vertical ? "Move down" : "Move right" })
+    }
+    rows.push({ kind: "action", action: "unpin", label: "Unpin" })
   }
 
-  if (pinnedIndex > 0) {
-    rows.push({ kind: "action", action: "back", label: vertical ? "Move up" : "Move left" })
+  if (all.length > 0) {
+    rows.push({
+      kind: "action",
+      action: "close",
+      label: all.length > 1 ? "Close all windows" : "Close window"
+    })
   }
-  if (pinnedIndex >= 0 && pinnedIndex < pinnedCount - 1) {
-    rows.push({ kind: "action", action: "forward", label: vertical ? "Move down" : "Move right" })
-  }
-  rows.push({ kind: "action", action: "unpin", label: "Unpin" })
   return rows
+}
+
+// The shell step that closes `address`, run right after focusing it.
+//
+// The close itself never names its target. Hyprland 0.56's Lua dispatcher
+// ignores arguments it does not recognise and acts on the active window — a
+// probe with a bogus address closed real windows during development. So this
+// closes the *active* window, the same call Omarchy's SUPER+W uses, and only
+// when the compositor confirms the active window is the one asked for. On a
+// pre-Lua config the Lua call fails and the legacy dispatcher, which does name
+// its target, runs instead — still inside the guard.
+//
+// Anything that is not a bare or 0x-prefixed hex address yields "", so bad
+// input can never reach a shell or close anything.
+function closeCommand(address) {
+  var hex = String(address === null || address === undefined ? "" : address).replace(/^0x/i, "")
+  if (!/^[0-9a-f]+$/i.test(hex)) return ""
+  var target = "0x" + hex.toLowerCase()
+  return "if [ \"$(hyprctl -j activewindow 2>/dev/null | jq -r '.address // empty')\" = \"" + target + "\" ]; then "
+    + "hyprctl dispatch 'hl.dsp.window.close()' >/dev/null 2>&1 || "
+    + "hyprctl dispatch closewindow address:" + target + " >/dev/null 2>&1; fi"
 }

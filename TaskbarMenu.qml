@@ -92,7 +92,7 @@ PopupCard {
           anchors.left: parent.left
           anchors.leftMargin: row.modelData.kind === "window" ? Style.space(28) : Style.space(10)
           anchors.right: parent.right
-          anchors.rightMargin: Style.space(10)
+          anchors.rightMargin: row.modelData.kind === "window" ? Style.space(30) : Style.space(10)
           text: row.modelData.label
           color: menu.foreground
           opacity: row.isHeader ? 0.6 : 1.0
@@ -111,6 +111,35 @@ PopupCard {
           onClicked: {
             if (row.modelData.kind === "window") host.focusAddress(row.modelData.address)
             else host.runAction(host.menuRecord ? host.menuRecord.key : "", row.modelData.action)
+            host.closeMenu()
+          }
+        }
+
+        // Closes just this window. Declared after rowMouse so it sits on top
+        // and takes the click; shown while the row is hovered.
+        Text {
+          visible: row.modelData.kind === "window" && (rowMouse.containsMouse || closeMouse.containsMouse)
+          anchors.verticalCenter: parent.verticalCenter
+          anchors.right: parent.right
+          anchors.rightMargin: Style.space(8)
+          text: "✕"
+          color: menu.foreground
+          opacity: closeMouse.containsMouse ? 1.0 : 0.6
+          font.family: menu.fontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+
+        MouseArea {
+          id: closeMouse
+          visible: row.modelData.kind === "window"
+          anchors.top: parent.top
+          anchors.bottom: parent.bottom
+          anchors.right: parent.right
+          width: Style.space(26)
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            host.closeAddress(row.modelData.address)
             host.closeMenu()
           }
         }
