@@ -25,6 +25,17 @@ WidgetButton {
     return false
   }
 
+  // Any of this app's windows asking for attention.
+  readonly property bool urgent: {
+    if (!host.attentionFlash) return false
+    for (var i = 0; i < matched.length; i++) {
+      if (host.urgentAddresses[matched[i].address] === true) return true
+    }
+    return false
+  }
+
+  readonly property color urgentColor: host.bar ? host.bar.urgent : Color.urgent
+
   readonly property var entry: host.desktopEntry(modelData)
   readonly property string iconName: {
     if (modelData.icon) return modelData.icon
@@ -41,6 +52,28 @@ WidgetButton {
   fixedHeight: host.vertical ? host.slotSize : host.barSize
 
   onPressed: function(button) { host.handlePress(slot.modelData, button, slot) }
+
+  // Declared before the icon and letter tile so it paints underneath them
+  // without needing a z-index on either.
+  //
+  // Pulses three times, then holds the tint until the window is focused.
+  Rectangle {
+    id: attention
+    anchors.fill: parent
+    radius: Math.max(2, Style.cornerRadius)
+    color: slot.urgentColor
+    opacity: 0
+    visible: opacity > 0
+
+    SequentialAnimation {
+      id: attentionPulse
+      running: slot.urgent
+      loops: 3
+      NumberAnimation { target: attention; property: "opacity"; to: 0.45; duration: 260; easing.type: Easing.OutCubic }
+      NumberAnimation { target: attention; property: "opacity"; to: 0.12; duration: 260; easing.type: Easing.InCubic }
+      onStopped: attention.opacity = slot.urgent ? 0.18 : 0
+    }
+  }
 
   Image {
     id: iconImage
@@ -78,7 +111,7 @@ WidgetButton {
     width: host.vertical ? 2 : extent
     height: host.vertical ? extent : 2
     radius: 1
-    color: slot.focused ? slot.activeColor : slot.foreground
+    color: slot.urgent ? slot.urgentColor : (slot.focused ? slot.activeColor : slot.foreground)
     x: host.vertical ? 2 : (slot.width - width) / 2
     y: host.vertical ? (slot.height - height) / 2 : slot.height - height - 3
 

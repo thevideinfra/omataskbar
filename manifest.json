@@ -27,7 +27,8 @@
       "cycleWindows": true,
       "showAddButton": true,
       "showRunningApps": true,
-      "showSeparator": true
+      "showSeparator": true,
+      "attentionFlash": true
     },
     "schema": [
       {
@@ -74,6 +75,11 @@
         "key": "showSeparator",
         "type": "bool",
         "label": "Separate pinned apps from running apps"
+      },
+      {
+        "key": "attentionFlash",
+        "type": "bool",
+        "label": "Flash icons for windows that ask for attention"
       }
     ]
   }

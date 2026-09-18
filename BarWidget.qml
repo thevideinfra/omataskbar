@@ -35,6 +35,35 @@ BarWidget {
   readonly property bool showAddButton: root.setting("showAddButton", true) === true
   readonly property bool showRunningApps: root.setting("showRunningApps", true) === true
   readonly property bool showSeparator: root.setting("showSeparator", true) === true
+  readonly property bool attentionFlash: root.setting("attentionFlash", true) === true
+
+  // Addresses Hyprland reported as urgent, used as a set. A plain object
+  // rather than a list: membership is what every slot asks about.
+  property var urgentAddresses: ({})
+
+  // Hyprland 0.56.2 emits this address bare (no "0x"), the same form
+  // Quickshell's toplevel.address uses, but hyprctl's own JSON output prefixes
+  // it — normalise defensively so a prefixed address still matches.
+  function markUrgent(address) {
+    var key = String(address || "").replace(/^0x/, "")
+    if (!key || !root.attentionFlash) return
+    if (key === root.activeAddress) return
+    if (root.urgentAddresses[key] === true) return
+    var next = {}
+    for (var existing in root.urgentAddresses) next[existing] = true
+    next[key] = true
+    root.urgentAddresses = next
+  }
+
+  function clearUrgent(address) {
+    var key = String(address || "").replace(/^0x/, "")
+    if (!key || root.urgentAddresses[key] !== true) return
+    var next = {}
+    for (var existing in root.urgentAddresses) {
+      if (existing !== key) next[existing] = true
+    }
+    root.urgentAddresses = next
+  }
 
   readonly property bool separatorVisible: root.showSeparator
     && root.pinned.length > 0 && root.unpinnedApps.length > 0
@@ -89,7 +118,11 @@ BarWidget {
     root.refreshUnpinned()
     root.refreshMenuRows()
   }
-  onActiveAddressChanged: root.refreshMenuRows()
+  // Focusing a window is the acknowledgement, so the flash stops there too.
+  onActiveAddressChanged: {
+    root.refreshMenuRows()
+    root.clearUrgent(root.activeAddress)
+  }
   // Editing the pins changes what counts as unclaimed even when not a single
   // window moved, so the fingerprint has to be dropped rather than compared.
   // It also changes the open menu's move rows (neighbour existence) and
@@ -684,8 +717,14 @@ BarWidget {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
+      var name = String(event.name || "")
       // openwindow, closewindow, movewindow, windowtitle, activewindow[v2].
-      if (String(event.name || "").indexOf("window") !== -1) root.windowSerial++
+      if (name.indexOf("window") !== -1) root.windowSerial++
+
+      // urgent>>address — a client asking for attention. Hyprland reports the
+      // address bare here, the same form Quickshell uses for toplevels.
+      if (name === "urgent") root.markUrgent(String(event.data || "").trim())
+      if (name === "closewindow") root.clearUrgent(String(event.data || "").trim())
     }
   }
 
