@@ -799,6 +799,17 @@ BarWidget {
       // openwindow, closewindow, movewindow, windowtitle, activewindow[v2].
       if (name.indexOf("window") !== -1) root.windowSerial++
 
+      // A window entry can get stuck in the toplevel model: one was seen
+      // painting an icon for hours after its window closed, with the title it
+      // had at launch, while the compositor listed nothing. Re-querying the
+      // compositor clears such an entry at the next window open or close
+      // instead of leaving it until the shell restarts. Only these two events
+      // can change which windows exist, so the continuous windowtitle ones
+      // never pay for the round trip.
+      if (name === "openwindow" || name === "closewindow") {
+        if (typeof Hyprland.refreshToplevels === "function") Hyprland.refreshToplevels()
+      }
+
       // urgent>>address — a client asking for attention. Hyprland reports the
       // address bare here, the same form Quickshell uses for toplevels.
       if (name === "urgent") root.markUrgent(String(event.data || "").trim())
