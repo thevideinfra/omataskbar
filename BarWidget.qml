@@ -39,6 +39,11 @@ BarWidget {
   readonly property bool showSeparator: root.boolSetting("showSeparator", true)
   readonly property bool attentionFlash: root.boolSetting("attentionFlash", true)
 
+  // Window class (or desktop id) -> icon name or absolute path, for anything
+  // that resolves to the wrong icon or to none at all. Hand-written in
+  // shell.json; it wins over every automatic lookup.
+  readonly property var icons: root.setting("icons", ({}))
+
   // `omarchy bar set` stores "true"/"false" strings; see AppModel.toBool.
   function boolSetting(name, fallback) {
     return AppModel.toBool(root.setting(name, fallback), fallback)
@@ -196,7 +201,9 @@ BarWidget {
   // Lowercased app id -> desktop entry id, for window classes that exist only
   // as an --app-id inside some entry's Exec. Rebuilt when the entry index
   // changes, which is what entrySerial tracks.
-  readonly property var execIndex: {
+  // Every desktop entry as a plain { id, exec } descriptor, so the pure
+  // indexes below are built from one pass rather than one each.
+  readonly property var entryDescriptors: {
     var serial = root.entrySerial // binding dependency
     var descriptors = []
     var values = DesktopEntries.applications ? DesktopEntries.applications.values : []
@@ -205,8 +212,14 @@ BarWidget {
       if (!entry) continue
       descriptors.push({ id: String(entry.id || ""), exec: String(entry.execString || "") })
     }
-    return AppModel.execAppIdIndex(descriptors)
+    return descriptors
   }
+
+  readonly property var execIndex: AppModel.execAppIdIndex(root.entryDescriptors)
+
+  // Web-app key -> entry id, for browser-hosted apps whose window class is the
+  // URL mangled by Chromium rather than anything a desktop entry is named.
+  readonly property var urlIndex: AppModel.urlAppIndex(root.entryDescriptors)
 
   function entryById(desktopId) {
     var serial = root.entrySerial // binding dependency
@@ -224,6 +237,16 @@ BarWidget {
       try {
         var byExec = DesktopEntries.byId(mapped)
         if (byExec) return byExec
+      } catch (e) { }
+    }
+
+    // A browser-hosted web app: its class carries the launched URL, so match
+    // that against the entries that launch one.
+    var byUrl = AppModel.urlEntryFor(root.urlIndex, id)
+    if (byUrl) {
+      try {
+        var urlEntry = DesktopEntries.byId(byUrl)
+        if (urlEntry) return urlEntry
       } catch (e) { }
     }
 

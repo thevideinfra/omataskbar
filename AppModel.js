@@ -122,6 +122,79 @@ function webappPattern(execString) {
   return escapeRegex(host + "__" + segment)
 }
 
+// The identity a browser-hosted web app's windows carry, derived from the
+// desktop entry that launches it.
+//
+// Both `omarchy-launch-webapp "https://messages.google.com/"` and a plain
+// `--app=https://discord.com/channels/@me` produce windows whose class is the
+// URL mangled by Chromium: `brave-messages.google.com__web_conversations-Default`,
+// `chrome-discord.com__channels_@me-Default`. Host alone would collide across
+// apps on one domain (Google Maps vs Google Photos), so the first path segment
+// comes along, the same rule webappPattern uses for matching. Returns "" for an
+// Exec that launches no URL.
+function urlAppKey(execString) {
+  var exec = String(execString === null || execString === undefined ? "" : execString)
+  if (exec.indexOf("omarchy-launch-webapp") === -1 && exec.indexOf("--app=") === -1) return ""
+  var found = /https?:\/\/([^\s"']+)/.exec(exec)
+  if (!found) return ""
+  var target = found[1].replace(/\/+$/, "").toLowerCase()
+  var slash = target.indexOf("/")
+  if (slash === -1) return target
+  var host = target.substring(0, slash)
+  var segment = target.substring(slash + 1).split("/")[0]
+  if (!segment) return host
+  return host + "__" + segment
+}
+
+// Web-app key -> desktop entry id, over plain { id, exec } descriptors. First
+// entry wins, so two entries for one URL resolve the same way every time.
+function urlAppIndex(entries) {
+  var all = toArray(entries)
+  var index = {}
+  for (var i = 0; i < all.length; i++) {
+    var entry = all[i]
+    if (!entry) continue
+    var id = String(entry.id || "")
+    if (!id) continue
+    var key = urlAppKey(entry.exec)
+    if (!key || (key in index)) continue
+    index[key] = id
+  }
+  return index
+}
+
+// The entry id for a window class, by looking for a web-app key inside it.
+// Substring rather than equality: the compositor wraps the key in the
+// browser's own prefix and suffix.
+function urlEntryFor(index, cls) {
+  var text = String(cls || "").toLowerCase()
+  if (!text || !index) return ""
+  for (var key in index) {
+    if (key && text.indexOf(key) !== -1) return index[key]
+  }
+  return ""
+}
+
+// Which icon a slot paints. A stored pin's own `icon` wins, then the `icons`
+// setting keyed on the window class (case-insensitively, so a class copied out
+// of hyprctl works whatever its case), then the resolved desktop entry's icon.
+// Falls back to the desktop id, which Quickshell can still resolve for a real
+// entry id and which the delegate turns into a letter tile when it cannot.
+function iconNameFor(record, icons, entryIcon) {
+  var id = String((record && record.icon) || "")
+  if (id) return id
+
+  var desktopId = String((record && record.desktopId) || "")
+  var map = icons || {}
+  var wanted = desktopId.toLowerCase()
+  for (var key in map) {
+    if (String(key).toLowerCase() === wanted && map[key]) return String(map[key])
+  }
+
+  var resolved = String(entryIcon || "")
+  return resolved || desktopId
+}
+
 // Accepts either a bare string ("chromium") or a full object. Everything the
 // widget reads later is present on the returned record, so the QML side never
 // has to re-check for undefined.

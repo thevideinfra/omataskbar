@@ -33,7 +33,11 @@ const EXPORTED = [
   "closeCommand",
   "menuStructureKey",
   "menuTitles",
-  "toBool"
+  "toBool",
+  "urlAppKey",
+  "urlAppIndex",
+  "urlEntryFor",
+  "iconNameFor"
 ]
 
 export async function loadAppModel() {

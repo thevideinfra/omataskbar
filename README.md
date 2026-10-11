@@ -73,6 +73,26 @@ Pinning through the `+` also works out how to recognise that app's windows, so
 the running indicator just works — including for Omarchy web apps, which
 Chromium reports under names like `chrome-discord.com__channels_@me-Default`.
 
+Browser-hosted web apps get their real icon: their window class is the URL
+mangled by Chromium (`brave-messages.google.com__web_conversations-Default`),
+so the desktop entry that launches that URL is found by matching the host, and
+its icon and name are used. Both `omarchy-launch-webapp` and plain
+`--app=https://…` entries resolve this way.
+
+When something still resolves wrong, or to no icon at all, name it yourself in
+`icons`. The key is the window class as `hyprctl clients` reports it (case
+doesn't matter) and the value is an icon name or an absolute path:
+
+```json
+"icons": {
+  "brave-messages.google.com__web_conversations-Default": "google-messages",
+  "TUI.tile": "/home/ks/.local/share/icons/btop.png"
+}
+```
+
+This beats every automatic lookup, and works for running apps as well as
+pinned ones. A pinned entry's own `icon` field still wins over both.
+
 Grouping is per window class, so terminal apps launched with the same
 `--app-id` all land on one icon and resolve to one desktop entry — several
 TUIs started with `--app-id=TUI.tile`, for instance, share an icon instead of
@@ -97,6 +117,7 @@ hot-reloads on save. The bar UI writes to this same place.
 | `showRunningApps` | `true` | Also show open apps that are not pinned |
 | `showSeparator` | `true` | Draw a separator between pinned and running icons |
 | `attentionFlash` | `true` | Flash an icon when one of its windows asks for attention |
+| `icons` | `{}` | Icon overrides, keyed on window class — see below |
 
 > **Disabling the widget discards your pins.** Omarchy stores widget settings
 > inline on the bar layout entry, and disabling removes that entry. Copy the
@@ -111,6 +132,13 @@ omarchy plugin remove io.github.thevideinfra.omataskbar
 This takes the pin list with it, for the same reason as above.
 
 ## Changes
+
+**0.6.0** — Browser-hosted web apps now show their real icon and name
+instead of a letter tile: the window class carries the launched URL, and the
+desktop entry that launches it is matched on the host. Covers
+`omarchy-launch-webapp` and plain `--app=` entries. Anything that still
+resolves badly can be named by hand in the new `icons` setting, keyed on
+window class.
 
 **0.5.1** — The `+` now always shows, and works, while nothing is pinned,
 even if `showAddButton` was turned off. It used to leave a dead placeholder

@@ -31,6 +31,7 @@ All of it sits inline on the widget's entry in `~/.config/omarchy/shell.json`:
   "dimWhenClosed": true,
   "cycleWindows": true,
   "showAddButton": true,
+  "icons": { "brave-messages.google.com__web_conversations-Default": "google-messages" },
   "showRunningApps": true,
   "showSeparator": true,
   "attentionFlash": true

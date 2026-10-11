@@ -37,10 +37,8 @@ WidgetButton {
   readonly property color urgentColor: host.bar ? host.bar.urgent : Color.urgent
 
   readonly property var entry: host.desktopEntry(modelData)
-  readonly property string iconName: {
-    if (modelData.icon) return modelData.icon
-    return entry && entry.icon ? String(entry.icon) : String(modelData.desktopId || "")
-  }
+  readonly property string iconName: AppModel.iconNameFor(modelData, host.icons,
+    entry && entry.icon ? String(entry.icon) : "")
   readonly property string appLabel: host.labelFor(modelData)
 
   bar: host.bar
