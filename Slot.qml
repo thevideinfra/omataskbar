@@ -36,6 +36,12 @@ WidgetButton {
 
   readonly property color urgentColor: host.bar ? host.bar.urgent : Color.urgent
 
+  // WidgetButton's activeColor resolves to bar.active, which no stock theme
+  // defines, so it falls through to Quickshell's hardcoded red. accent is set
+  // by every stock theme, so the focused indicator tracks the theme instead.
+  // Attention flashes keep urgentColor: standing out is their whole job.
+  readonly property color focusColor: Color.accent
+
   readonly property var entry: host.desktopEntry(modelData)
   readonly property string iconName: AppModel.iconNameFor(modelData, host.icons,
     entry && entry.icon ? String(entry.icon) : "")
@@ -112,7 +118,7 @@ WidgetButton {
     visible: iconImage.status !== Image.Ready
     anchors.centerIn: iconImage
     text: slot.appLabel.substring(0, 1).toUpperCase()
-    color: slot.focused ? slot.activeColor : slot.foreground
+    color: slot.focused ? slot.focusColor : slot.foreground
     font.family: slot.fontFamily
     font.pixelSize: Style.font.bodySmall
     renderType: Text.NativeRendering
@@ -125,7 +131,7 @@ WidgetButton {
     width: host.vertical ? 2 : extent
     height: host.vertical ? extent : 2
     radius: 1
-    color: slot.urgent ? slot.urgentColor : (slot.focused ? slot.activeColor : slot.foreground)
+    color: slot.urgent ? slot.urgentColor : (slot.focused ? slot.focusColor : slot.foreground)
     x: host.vertical ? 2 : (slot.width - width) / 2
     y: host.vertical ? (slot.height - height) / 2 : slot.height - height - 3
 

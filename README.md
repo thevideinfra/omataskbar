@@ -133,6 +133,11 @@ This takes the pin list with it, for the same reason as above.
 
 ## Changes
 
+**0.6.1** — The focused-window indicator follows the theme's accent colour
+instead of Quickshell's hardcoded red. `WidgetButton`'s active colour resolves
+to `bar.active`, which no stock Omarchy theme defines. Attention flashes still
+use the urgent colour.
+
 **0.6.0** — Browser-hosted web apps now show their real icon and name
 instead of a letter tile: the window class carries the launched URL, and the
 desktop entry that launches it is matched on the host. Covers
